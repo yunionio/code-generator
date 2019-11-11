@@ -1,0 +1,9 @@
+*.o
+*.a
+*.so
+*.swp
+
+.DS_Store
+.idea/
+
+_output
