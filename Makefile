@@ -4,6 +4,9 @@ model-api-gen:
 swagger-gen:
 	go build -o _output/bin/swagger-gen cmd/swagger-gen/main.go
 
+swagger-serve:
+	go build -o _output/bin/swagger-serve cmd/swagger-serve/main.go
+
 install: model-api-gen swagger-gen
 	cp -a _output/bin/* $$GOBIN
 

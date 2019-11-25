@@ -26,8 +26,7 @@ const swaggerMeta = `
 //       type: apiKey
 //       in: header
 //
-// swagger:meta
-`
+// swagger:meta`
 
 type swaggerDocGen struct {
 	generator.DefaultGen
