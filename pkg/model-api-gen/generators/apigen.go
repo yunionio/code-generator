@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"golang.org/x/tools/imports"
 	"k8s.io/gengo/args"
 	"k8s.io/gengo/generator"
 	"k8s.io/gengo/namer"
@@ -137,7 +138,12 @@ func defaultAPIsPkg(srcPkg string) string {
 	return filepath.Join(yunionPrefix, projectName, "pkg", "apis")
 }
 
+func reviseImportPath() {
+	imports.LocalPrefix = "yunion.io/x/:yunion.io/x/onecloud"
+}
+
 func NewApiGen(sanitizedName, sourcePackage, apisPkg string, pkgTypes []*types.Type) generator.Generator {
+	reviseImportPath()
 	if apisPkg == "" {
 		apisPkg = defaultAPIsPkg(sourcePackage)
 	}

@@ -11,7 +11,7 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.5
 	github.com/tredoe/osutil v0.0.0-20191018075336-e272fdda81c8 // indirect
-	golang.org/x/tools v0.0.0-20191112005509-a3f652f18032 // indirect
+	golang.org/x/tools v0.0.0-20191112005509-a3f652f18032
 	k8s.io/gengo v0.0.0-20191120174120-e74f70b9b27e
 	k8s.io/klog v1.0.0
 	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
@@ -20,4 +20,7 @@ require (
 	yunion.io/x/sqlchemy v0.0.0-20191122085525-2d3bfdb3f51c // indirect
 )
 
-replace yunion.io/x/onecloud => ../onecloud
+replace (
+	golang.org/x/tools => github.com/yousong/tools v0.0.0-20191028041046-a3599409985d
+	yunion.io/x/onecloud => ../onecloud
+)
