@@ -2,6 +2,7 @@ package generators
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"k8s.io/gengo/generator"
@@ -12,6 +13,9 @@ import (
 )
 
 func privateName(structName, methodName string) string {
+	if structName == "" {
+		return methodName
+	}
 	return structName + "_" + methodName
 	//if len(structName) == 0 {
 	//return methodName
@@ -66,10 +70,14 @@ func (f *routeFactory) newRoute(action string, input *parameter, output *respons
 		desc = append(desc, commentLines[1:len(commentLines)]...)
 	}
 	r.description = desc
+	r.reviseDescription()
+	return r
+}
+
+func (r *route) reviseDescription() {
 	if r.summary != "" && len(r.description) == 0 {
 		r.description = append(r.description, r.summary)
 	}
-	return r
 }
 
 func (f *routeFactory) Create(input *parameter, output *response) *route {
@@ -278,10 +286,46 @@ func newParameter(singular, plural, id string) *parameter {
 		errorMsgs:   make([]string, 0),
 	}
 }
-
 func (r parameter) Do(sw *generator.SnippetWriter) {
 	h := newSW(sw)
 	h.line(fmt.Sprintf("swagger:parameters %s", r.operationId))
+	r.do(sw, h)
+}
+
+func getValidType(t *types.Type) *types.Type {
+	if t == nil {
+		return nil
+	}
+	switch t.Kind {
+	case types.Pointer:
+		return t.Elem
+	case types.Struct:
+		return t
+	default:
+		return nil
+	}
+}
+
+func GetValidType(t *types.Type) *types.Type {
+	t = getValidType(t)
+	if t == nil {
+		return nil
+	}
+	if strings.Contains(t.Name.Package, "yunion.io/x/jsonutils") {
+		return nil
+	}
+	return t
+}
+
+func (r parameter) getQuery() *types.Type {
+	return GetValidType(r.query)
+}
+
+func (r parameter) getBody() *types.Type {
+	return GetValidType(r.body)
+}
+
+func (r parameter) do(sw *generator.SnippetWriter, h *snippetWriter) {
 	sw.Do(fmt.Sprintf("type %s struct {\n", r.operationId), nil)
 	if r.withId {
 		h.line(fmt.Sprintf("The Id or Name of %s", r.singular))
@@ -289,14 +333,23 @@ func (r parameter) Do(sw *generator.SnippetWriter) {
 		h.line("required:true")
 		sw.Do("Id string `json:\"id\"`\n", nil)
 	}
-	if r.query != nil && isStructPointer(r.query) {
-		args := getArgs(r.query)
+	query := r.getQuery()
+	if query != nil {
+		args := getArgs(query)
 		sw.Do("$.type|raw$\n", args)
 	}
-	if r.body != nil && isStructPointer(r.body) {
-		args := getArgs(r.body)
+	body := r.getBody()
+	if r.body != nil {
+		args := getArgs(body)
 		sw.Do("// in:body\n", nil)
-		sw.Do(fmt.Sprintf("Body $.type|raw$ `json:\"%s\"`\n", r.singular), args)
+		if r.singular != "" {
+			sw.Do("Body struct {", nil)
+			sw.Do(fmt.Sprintf("Input $.type|raw$ `json:\"%s\"`\n", r.singular), args)
+			sw.Do("} `json:\"body\"`", nil)
+			//sw.Do(fmt.Sprintf("Body $.type|raw$ `json:\"%s\"`\n", r.singular), args)
+		} else {
+			sw.Do("Body $.type|raw$ `json:\"body\"`", args)
+		}
 	}
 	sw.Do("}\n", nil)
 }
@@ -314,15 +367,20 @@ type response struct {
 	errorMsgs []string
 }
 
+func (r response) getOutput() *types.Type {
+	return GetValidType(r.output)
+}
+
 func (r response) Do(sw *generator.SnippetWriter) {
-	args := getArgs(r.output)
 	h := newSW(sw)
 	sw.Do(fmt.Sprintf("// swagger:response %s\n", r.id), nil)
 	sw.Do(fmt.Sprintf("type %s struct {\n", r.id), nil)
-	if r.output != nil && isStructPointer(r.output) {
+	output := r.getOutput()
+	args := getArgs(output)
+	if output != nil {
+		h.line("in:body")
 		if r.bodyKey != "" {
-			h.line("in:body")
-			r.bodyStruct(sw)
+			r.bodyStruct(output, sw)
 		} else {
 			sw.Do("$.type|raw$", args)
 		}
@@ -330,8 +388,8 @@ func (r response) Do(sw *generator.SnippetWriter) {
 	sw.Do("}\n", nil)
 }
 
-func (r response) bodyStruct(sw *generator.SnippetWriter) {
-	args := getArgs(r.output)
+func (r response) bodyStruct(output *types.Type, sw *generator.SnippetWriter) {
+	args := getArgs(output)
 	sw.Do("Body struct {\n", nil)
 	if r.isList {
 		sw.Do(fmt.Sprintf("Output []$.type|raw$ `json:\"%s\"`\n", r.bodyKey), args)
@@ -383,4 +441,81 @@ func (f *responseFactory) ListResult(getMethod *Method) *response {
 	r.bodyKey = f.method.resPlural
 	r.isList = true
 	return r
+}
+
+type SwaggerConfigRoute struct {
+	Method string
+	Path   string
+	Tags   []string
+}
+
+func (c *SwaggerConfigRoute) newRoute(input *parameter, output *response) *route {
+	r := &route{
+		action:    c.Method,
+		path:      c.Path,
+		parameter: input,
+		tags:      c.Tags,
+		response: map[int]*response{
+			200: output,
+		},
+	}
+	return r
+}
+
+type SwaggerConfigParam struct {
+	Body  *types.Type
+	Query *types.Type
+}
+
+func (c *SwaggerConfigParam) newParameter(t *types.Type) *parameter {
+	n := filepath.Base(t.Name.Package)
+	param := newParameter("", "", privateName(n, t.Name.Name))
+	param.query = c.Query
+	param.body = c.Body
+	return param
+}
+
+type SwaggerConfigResponse struct {
+	Output  *types.Type
+	BodyKey string
+}
+
+func (c *SwaggerConfigResponse) newResponse(t *types.Type) *response {
+	n := filepath.Base(t.Name.Package)
+	r := &response{
+		id:        fmt.Sprintf("%sOutput", privateName(n, t.Name.Name)),
+		bodyKey:   c.BodyKey,
+		errorMsgs: make([]string, 0),
+	}
+	r.output = c.Output
+	return r
+}
+
+type SwaggerConfig struct {
+	Route    *SwaggerConfigRoute
+	Param    *SwaggerConfigParam
+	Response *SwaggerConfigResponse
+}
+
+func (c *SwaggerConfig) generate(t *types.Type, sw *generator.SnippetWriter) {
+	param := c.Param.newParameter(t)
+	resp := c.Response.newResponse(t)
+	route := c.Route.newRoute(param, resp)
+	commentLines := t.CommentLines
+	if len(commentLines) > 0 {
+		route.summary = commentLines[0]
+	}
+	desc := make([]string, 0)
+	if len(commentLines) > 1 {
+		desc = append(desc, commentLines[1:len(commentLines)]...)
+	}
+	route.description = desc
+	route.reviseDescription()
+
+	cc := &commenter{
+		route:     route,
+		parameter: param,
+		response:  resp,
+	}
+	cc.Do(sw)
 }

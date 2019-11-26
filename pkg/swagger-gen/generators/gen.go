@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"k8s.io/gengo/args"
@@ -20,8 +21,130 @@ import (
 	"yunion.io/x/code-generator/pkg/models"
 )
 
-// 1. find model rest api functions and parameters
-// 2. according step 1 result generate swagger spec
+const (
+	tagIgnoreName    = "onecloud:swagger-gen-ignore"
+	tagRouteMethod   = "onecloud:swagger-gen-route-method"
+	tagRoutePath     = "onecloud:swagger-gen-route-path"
+	tagRouteTag      = "onecloud:swagger-gen-route-tag"
+	tagParamQueryIdx = "onecloud:swagger-gen-param-query-index"
+	tagParamBodyIdx  = "onecloud:swagger-gen-param-body-index"
+	tagRespIdx       = "onecloud:swagger-gen-resp-index"
+	tagRespBodyKey   = "onecloud:swagger-gen-resp-body-key"
+)
+
+func extractTagByName(comments []string, tagName string) []string {
+	return types.ExtractCommentTags("+", comments)[tagName]
+}
+
+func extractIgnoreTag(comments []string) []string {
+	return extractTagByName(comments, tagIgnoreName)
+}
+
+func extractSwaggerRoute(comments []string) *SwaggerConfigRoute {
+	// 1. get route method
+	vals := extractTagByName(comments, tagRouteMethod)
+	if len(vals) == 0 {
+		return nil
+	}
+	route := new(SwaggerConfigRoute)
+	route.Method = vals[0]
+	// 2. get route path
+	vals = extractTagByName(comments, tagRoutePath)
+	if len(vals) == 0 {
+		return nil
+	}
+	route.Path = vals[0]
+	// 3. get route tags
+	vals = extractTagByName(comments, tagRouteTag)
+	if len(vals) == 0 {
+		return nil
+	}
+	route.Tags = vals
+	return route
+}
+
+func fetchTagIdx(ut *types.Type, comments []string, tagName string) *types.Type {
+	vals := extractTagByName(comments, tagName)
+	if len(vals) == 0 {
+		return nil
+	}
+	idx, err := strconv.Atoi(vals[0])
+	if err != nil {
+		log.Errorf("invalid tag %s=%s", tagName, vals[0])
+		return nil
+	}
+	params := ut.Signature.Parameters
+	if idx >= len(params) {
+		log.Errorf("invalid tag %s=%s, only %d arguments", tagName, vals[0], len(params))
+		return nil
+	}
+	return params[idx]
+}
+
+func extractSwaggerParam(ut *types.Type, comments []string) *SwaggerConfigParam {
+	query := fetchTagIdx(ut, comments, tagParamQueryIdx)
+	body := fetchTagIdx(ut, comments, tagParamBodyIdx)
+	if query == nil && body == nil {
+		return nil
+	}
+	param := new(SwaggerConfigParam)
+	param.Query = query
+	param.Body = body
+	return param
+}
+
+func extractSwaggerResponse(ut *types.Type, comments []string) *SwaggerConfigResponse {
+	vals := extractTagByName(comments, tagRespIdx)
+	if len(vals) == 0 {
+		return nil
+	}
+	resp := new(SwaggerConfigResponse)
+	idx, err := strconv.Atoi(vals[0])
+	if err != nil {
+		log.Errorf("invalid tag %s=%s", tagRespIdx, vals[0])
+		return nil
+	}
+	results := ut.Signature.Results
+	if idx >= len(results) {
+		log.Errorf("invalid tag %s=%s, only %d results", tagRespIdx, vals[0], len(results))
+		return nil
+	}
+	vals = extractTagByName(comments, tagRespBodyKey)
+	if len(vals) > 0 {
+		resp.BodyKey = vals[0]
+	}
+	resp.Output = results[idx]
+	return resp
+}
+
+func extractSwaggerConfig(ut *types.Type, comments []string) *SwaggerConfig {
+	route := extractSwaggerRoute(comments)
+	if route == nil {
+		return nil
+	}
+	param := extractSwaggerParam(ut, comments)
+	resp := extractSwaggerResponse(ut, comments)
+	return &SwaggerConfig{
+		Route:    route,
+		Param:    param,
+		Response: resp,
+	}
+}
+
+func includeIgnoreTag(t *types.Type) bool {
+	vals := extractIgnoreTag(t.CommentLines)
+	if len(vals) != 0 {
+		return true
+	}
+	return false
+}
+
+func getFunctionHasSwaggerConfig(t *types.Type) *SwaggerConfig {
+	if t.Kind != types.DeclarationOf {
+		return nil
+	}
+	return extractSwaggerConfig(t.Underlying, t.SecondClosestCommentLines)
+}
 
 func NameSystems() namer.NameSystems {
 	return namer.NameSystems{
@@ -65,7 +188,11 @@ func Packages(ctx *generator.Context, arguments *args.GeneratorArgs) generator.P
 						NewSwaggerGen(arguments.OutputFileBaseName, pkg.Path, ctx.Order),
 					}
 				},
-			})
+				FilterFunc: func(c *generator.Context, t *types.Type) bool {
+					return t.Name.Package == pkg.Path
+				},
+			},
+		)
 	}
 	return pkgs
 }
@@ -117,6 +244,15 @@ func isModelManagerRegistered(mt *types.Type) bool {
 }
 
 func (g *swaggerGen) Filter(c *generator.Context, t *types.Type) bool {
+	if includeIgnoreTag(t) {
+		return false
+	}
+	if t.Kind == types.DeclarationOf {
+		swaggerCfg := getFunctionHasSwaggerConfig(t)
+		if swaggerCfg != nil {
+			return true
+		}
+	}
 	if g.modelTypes.Has(t.String()) && isModelManagerRegistered(g.getModelManager(t)) {
 		return true
 	}
@@ -126,8 +262,17 @@ func (g *swaggerGen) Filter(c *generator.Context, t *types.Type) bool {
 func (g *swaggerGen) GenerateType(c *generator.Context, t *types.Type, w io.Writer) error {
 	klog.V(2).Infof("Generating api model for type %s", t)
 	sw := generator.NewSnippetWriter(w, c, "$", "$")
-	g.generateCode(g.getModelManager(t), t, sw)
+	if t.Kind == types.DeclarationOf {
+		g.generateDeclarationCode(t, sw)
+	} else {
+		g.generateCode(g.getModelManager(t), t, sw)
+	}
 	return sw.Error()
+}
+
+func (g *swaggerGen) generateDeclarationCode(t *types.Type, sw *generator.SnippetWriter) {
+	config := getFunctionHasSwaggerConfig(t)
+	config.generate(t, sw)
 }
 
 func (g *swaggerGen) generateCode(manType *types.Type, modelType *types.Type, sw *generator.SnippetWriter) {
@@ -222,7 +367,7 @@ func getTypeMethods(
 	}
 	methods := make([]*Method, 0)
 	for name, m := range t.Methods {
-		if strings.HasPrefix(name, funcPrefixKeyword) {
+		if strings.HasPrefix(name, funcPrefixKeyword) && !includeIgnoreTag(m) {
 			useIt := true
 			mWrap := NewMethod(t, name, m, keyword, keywordPlural)
 			if predicateF != nil {
