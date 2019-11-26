@@ -44,22 +44,23 @@ func Packages(ctx *generator.Context, arguments *args.GeneratorArgs) generator.P
 	inputs := sets.NewString(ctx.Inputs...)
 	header := append([]byte(fmt.Sprintf("// +build !%s\n\n", arguments.GeneratedBuildTag)), boilerplate...)
 
+	outPkgName := strings.Split(filepath.Base(arguments.OutputPackagePath), ".")[0]
+	pkgPath := arguments.OutputPackagePath
+	svcName := outPkgName
+	pkgs = append(pkgs, NewDocPackage(outPkgName, pkgPath, header, svcName))
 	for i := range inputs {
 		pkg := ctx.Universe[i]
 		if pkg == nil {
 			continue
 		}
 		klog.Infof("Considering pkg %q", pkg.Path)
-		outPkgName := strings.Split(filepath.Base(arguments.OutputPackagePath), ".")[0]
 		pkgs = append(pkgs,
 			&generator.DefaultPackage{
 				PackageName: outPkgName,
-				PackagePath: arguments.OutputPackagePath,
+				PackagePath: pkgPath,
 				HeaderText:  header,
 				GeneratorFunc: func(c *generator.Context) []generator.Generator {
 					return []generator.Generator{
-						// Always generate a "doc.go" file.
-						NewSwaggerDocGen(),
 						// Generate swagger code by model.
 						NewSwaggerGen(arguments.OutputFileBaseName, pkg.Path, ctx.Order),
 					}
