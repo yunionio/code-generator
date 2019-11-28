@@ -17,7 +17,6 @@ require (
 	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
 	yunion.io/x/onecloud v0.0.0-00010101000000-000000000000
 	yunion.io/x/pkg v0.0.0-20191121110824-e03b47b93fe0
-	yunion.io/x/sqlchemy v0.0.0-20191122085525-2d3bfdb3f51c // indirect
 )
 
 replace (

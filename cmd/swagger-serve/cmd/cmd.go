@@ -86,7 +86,7 @@ func (o generateOption) newUIIndexHTMLConfig() (*UIIndexHTMLConfig, error) {
 
 func checkErr(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
+		log.Errorf("%v", err)
 		os.Exit(1)
 	}
 }
@@ -166,7 +166,7 @@ func doGenerate(cfg *generateOption) error {
 	if err := ioutil.WriteFile(filepath.Join(cfg.OutputDir, "index.html"), index, 0644); err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stdout, "generate swagger ui site to %q\n", cfg.OutputDir)
+	log.Infof("generate swagger ui site to %q\n", cfg.OutputDir)
 	return nil
 }
 
