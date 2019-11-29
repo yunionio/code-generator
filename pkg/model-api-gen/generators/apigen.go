@@ -373,11 +373,12 @@ func (g *apiGen) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 }
 
 type Member struct {
-	name     string
-	jsonTags []string
-	mType    string
-	namer    string
-	embedded bool
+	name         string
+	jsonTags     []string
+	mType        string
+	namer        string
+	embedded     bool
+	useInterface bool
 }
 
 func NewMember(name string) *Member {
@@ -409,6 +410,11 @@ func (m *Member) Embedded() *Member {
 	return m
 }
 
+func (m *Member) UseInterface() *Member {
+	m.useInterface = true
+	return m
+}
+
 func (m *Member) AddTag(tags ...string) *Member {
 	tSets := sets.NewString(tags...)
 	tSets.Insert(m.jsonTags...)
@@ -435,6 +441,8 @@ func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
 	namePart := m.name
 	if m.mType != "" {
 		typePart = m.mType
+	} else if m.useInterface {
+		typePart = "interface{}"
 	} else {
 		typePart = fmt.Sprintf("$.type|%s$", m.namer)
 	}
@@ -504,11 +512,23 @@ func (g *apiGen) doInterface(m types.Member, sw *generator.SnippetWriter) {
 	if m.Embedded {
 		klog.Fatalf("%s used as embedded interface", m.String())
 	}
-	NewModelMember(m.Name).Do(sw, g.args(m.Type))
+	mem := NewModelMember(m.Name)
+	if g.inJSONUtilsPackage(m.Type) {
+		mem.UseInterface()
+	}
+	mem.Do(sw, g.args(m.Type))
 }
 
 func (g *apiGen) inSourcePackage(t *types.Type) bool {
 	return common.InSourcePackage(t, g.sourcePackage)
+}
+
+func (g *apiGen) inJSONUtilsPackage(t *types.Type) bool {
+	ut := underlyingType(t)
+	if t.Kind == types.Pointer {
+		ut = t.Elem
+	}
+	return strings.Contains(ut.Name.Package, "yunion.io/x/jsonutils")
 }
 
 func (g *apiGen) getPointerSourcePackageName(t *types.Type) string {
@@ -525,6 +545,8 @@ func (g *apiGen) doPointer(m types.Member, sw *generator.SnippetWriter) {
 	elem := m.Type.Elem
 	if g.inSourcePackage(elem) {
 		mem.Type(g.getPointerSourcePackageName(t))
+	} else if g.inJSONUtilsPackage(elem) {
+		mem.UseInterface()
 	}
 	if m.Embedded {
 		mem.Embedded()

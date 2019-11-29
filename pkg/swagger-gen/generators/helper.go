@@ -415,30 +415,32 @@ func (f *responseFactory) newResponse() *response {
 
 func (f *responseFactory) FirstSingularResult() *response {
 	// return pattern: ObjectPtr, error
+	return f.ResultByMethod(f.method, 0, f.method.resSingular)
+}
+
+func (f *responseFactory) ResultByMethod(method *Method, resultIdx int, bodyKey string) *response {
 	r := f.newResponse()
-	sig := f.method.Signature()
+	sig := method.Signature()
 	params := sig.Results
-	out := params[0]
+	out := params[resultIdx]
 	if isStructPointer(out) {
 		r.output = out
 	} else {
 		r.errorMsgs = append(r.errorMsgs, fmt.Sprintf("unsupport type %s", out.String()))
 	}
-	r.bodyKey = f.method.resSingular
+	if bodyKey == "" {
+		bodyKey = f.method.resPlural
+	}
+	r.bodyKey = bodyKey
 	return r
 }
 
+func (f *responseFactory) ResultByGetMethod(getMethod *Method) *response {
+	return f.ResultByMethod(getMethod, 0, f.method.resSingular)
+}
+
 func (f *responseFactory) ListResult(getMethod *Method) *response {
-	r := f.newResponse()
-	sig := getMethod.Signature()
-	params := sig.Results
-	out := params[0]
-	if isStructPointer(out) {
-		r.output = out
-	} else {
-		r.errorMsgs = append(r.errorMsgs, fmt.Sprintf("unsupport type %s", out.String()))
-	}
-	r.bodyKey = f.method.resPlural
+	r := f.ResultByMethod(getMethod, 0, f.method.resPlural)
 	r.isList = true
 	return r
 }

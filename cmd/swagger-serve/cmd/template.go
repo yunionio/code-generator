@@ -54,6 +54,7 @@ const (
         ],
         dom_id: '#swagger-ui',
         deepLinking: true,
+        tagsSorter: "alpha",
         presets: [
           SwaggerUIBundle.presets.apis,
           SwaggerUIStandalonePreset
