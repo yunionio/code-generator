@@ -8,7 +8,7 @@ swagger-serve:
 	go build -o _output/bin/swagger-serve cmd/swagger-serve/main.go
 
 install: model-api-gen swagger-gen swagger-serve
-	cp -a _output/bin/* $$GOBIN
+	rsync -avP _output/bin/* $$GOBIN
 
 clean:
 	rm -rf _output/bin/
