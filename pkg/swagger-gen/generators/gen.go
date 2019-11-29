@@ -279,13 +279,13 @@ func (g *swaggerGen) generateCode(manType *types.Type, modelType *types.Type, sw
 	manIns := g.getModelManagerInstance(modelType)
 	parser := newTypeParser(manIns, manType, modelType)
 
-	generateCreate(parser.createM(), sw)
 	getM := parser.getM()
 	generateGet(getM, sw)
+	generateCreate(parser.createM(), getM, sw)
 	lm := parser.listM()
 	generateList(lm, getM, sw)
-	generateUpdate(parser.updateM(), sw)
-	generateDelete(parser.deleteM(), sw)
+	generateUpdate(parser.updateM(), getM, sw)
+	generateDelete(parser.deleteM(), getM, sw)
 
 	applyGenerateFunc(generateGetSpec, parser.getSpecM, sw)
 	applyGenerateFunc(generatePerformAction, parser.performActionM, sw)
@@ -595,13 +595,13 @@ func (w snippetWriter) line(l string) {
 	w.lines([]string{l})
 }
 
-func generateCreate(method *Method, sw *generator.SnippetWriter) {
-	if method == nil {
+func generateCreate(createMethod, getMethod *Method, sw *generator.SnippetWriter) {
+	if createMethod == nil || getMethod == nil {
 		return
 	}
-	param := newParameterFactory(method).Create()
-	resp := newResponseFactory(method).FirstSingularResult()
-	route := newRouteFactory(method).Create(param, resp)
+	param := newParameterFactory(createMethod).Create()
+	resp := newResponseFactory(createMethod).ResultByGetMethod(getMethod)
+	route := newRouteFactory(createMethod).Create(param, resp)
 	c := &commenter{
 		route:     route,
 		parameter: param,
@@ -640,12 +640,12 @@ func generateGet(method *Method, sw *generator.SnippetWriter) {
 	c.Do(sw)
 }
 
-func generateUpdate(method *Method, sw *generator.SnippetWriter) {
-	if method == nil {
+func generateUpdate(method, getMethod *Method, sw *generator.SnippetWriter) {
+	if method == nil || getMethod == nil {
 		return
 	}
 	param := newParameterFactory(method).Update()
-	resp := newResponseFactory(method).FirstSingularResult()
+	resp := newResponseFactory(method).ResultByGetMethod(getMethod)
 	route := newRouteFactory(method).Update(param, resp)
 	c := &commenter{
 		route:     route,
@@ -655,12 +655,12 @@ func generateUpdate(method *Method, sw *generator.SnippetWriter) {
 	c.Do(sw)
 }
 
-func generateDelete(method *Method, sw *generator.SnippetWriter) {
-	if method == nil {
+func generateDelete(method, getMethod *Method, sw *generator.SnippetWriter) {
+	if method == nil || getMethod == nil {
 		return
 	}
 	param := newParameterFactory(method).Delete()
-	resp := newResponseFactory(method).FirstSingularResult()
+	resp := newResponseFactory(method).ResultByGetMethod(getMethod)
 	route := newRouteFactory(method).Delete(param, resp)
 	c := &commenter{
 		route:     route,
