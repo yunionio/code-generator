@@ -690,7 +690,7 @@ func generatePerformAction(method *Method, sw *generator.SnippetWriter) {
 		return
 	}
 	param := newParameterFactory(method).PerformAction()
-	resp := newResponseFactory(method).FirstSingularResult()
+	resp := newResponseFactory(method).FirstSingularResultNoError()
 	route := newRouteFactory(method).PerformAction(param, resp)
 	c := &commenter{
 		route:     route,

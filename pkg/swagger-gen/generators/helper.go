@@ -418,14 +418,19 @@ func (f *responseFactory) FirstSingularResult() *response {
 	return f.ResultByMethod(f.method, 0, f.method.resSingular)
 }
 
-func (f *responseFactory) ResultByMethod(method *Method, resultIdx int, bodyKey string) *response {
+func (f *responseFactory) FirstSingularResultNoError() *response {
+	// return pattern: ObjectPtr, error
+	return f.resultByMethod(f.method, 0, f.method.resSingular, true)
+}
+
+func (f *responseFactory) resultByMethod(method *Method, resultIdx int, bodyKey string, ignoreErr bool) *response {
 	r := f.newResponse()
 	sig := method.Signature()
 	params := sig.Results
 	out := params[resultIdx]
 	if isStructPointer(out) {
 		r.output = out
-	} else {
+	} else if !ignoreErr {
 		r.errorMsgs = append(r.errorMsgs, fmt.Sprintf("unsupport type %s", out.String()))
 	}
 	if bodyKey == "" {
@@ -433,6 +438,10 @@ func (f *responseFactory) ResultByMethod(method *Method, resultIdx int, bodyKey 
 	}
 	r.bodyKey = bodyKey
 	return r
+}
+
+func (f *responseFactory) ResultByMethod(method *Method, resultIdx int, bodyKey string) *response {
+	return f.resultByMethod(method, resultIdx, bodyKey, false)
 }
 
 func (f *responseFactory) ResultByGetMethod(getMethod *Method) *response {
