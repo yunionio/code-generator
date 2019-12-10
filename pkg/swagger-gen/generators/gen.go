@@ -410,25 +410,25 @@ func validInputOutput(input, output *types.Type) error {
 		"input":  input,
 		"output": output,
 	} {
-		if isStructPointer(t) {
-			return fmt.Errorf("invalid %s %s kind %s", key, t.String(), t.Kind)
+		if err := isValidType(t); err != nil {
+			return fmt.Errorf("invalid %s type: %v", key, err)
 		}
 	}
 	return nil
 }
 
-func isStructPointer(t *types.Type) bool {
-	if t.Kind != types.Pointer {
-		return false
+func isValidType(t *types.Type) error {
+	if t == nil {
+		return fmt.Errorf("type is nil")
 	}
-	elem := t.Elem
-	if elem.Kind != types.Struct {
-		return false
+	rt := GetValidType(t)
+	if rt == nil {
+		return fmt.Errorf("invalid type %s", t.String())
 	}
-	if strings.Contains(elem.Name.Package, "yunion.io/x/jsonutils") {
-		return false
+	if rt.Name.Name == "struct{}" {
+		return fmt.Errorf("type name is empty %s", rt.String())
 	}
-	return true
+	return nil
 }
 
 func (p *typeParser) createM() *Method {
@@ -532,8 +532,8 @@ func (p *typeParser) getSpecM() []*Method {
 			sig := m.Signature()
 			//input := sig.Parameters[2]
 			output := sig.Results[0]
-			if !isStructPointer(output) {
-				log.Warningf("method %s: output is not struct pointer", m.String())
+			if err := isValidType(output); err != nil {
+				log.Warningf("method %s: output type is invalid: %v", m.String(), err)
 				//return false
 			}
 			return true

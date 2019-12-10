@@ -8,7 +8,7 @@ import (
 	"k8s.io/gengo/generator"
 	"k8s.io/gengo/types"
 
-	//"yunion.io/x/log"
+	"yunion.io/x/log"
 	"yunion.io/x/pkg/utils"
 )
 
@@ -181,10 +181,10 @@ func (f *paramterFactory) Create() *parameter {
 	query := f.method.Params(3)
 	body := f.method.Params(4)
 	p := f.newParameter()
-	if isStructPointer(body) {
+	if err := isValidType(body); err == nil {
 		p.body = body
 	} else {
-		p.errorMsgs = append(p.errorMsgs, fmt.Sprintf("unsupport body type %s", body.String()))
+		p.errorMsgs = append(p.errorMsgs, fmt.Sprintf("unsupport body type: %v", err))
 	}
 	p.query = query
 	return p
@@ -194,10 +194,10 @@ func (f *paramterFactory) List() *parameter {
 	// pattern: func(ctx, q, userCred, query)
 	query := f.method.Params(3)
 	p := f.newParameter()
-	if isStructPointer(query) {
+	if err := isValidType(query); err == nil {
 		p.query = query.Elem
 	} else {
-		p.errorMsgs = append(p.errorMsgs, fmt.Sprintf("unsupport query type %s", query.String()))
+		p.errorMsgs = append(p.errorMsgs, fmt.Sprintf("unsupport query type: %v", err))
 	}
 	return p
 }
@@ -206,8 +206,10 @@ func (f *paramterFactory) Get() *parameter {
 	// pattern: func(ctx, userCred, query)
 	query := f.method.Params(2)
 	p := f.newParameter()
-	if isStructPointer(query) {
+	if err := isValidType(query); err == nil {
 		p.query = query.Elem
+	} else {
+		log.Warningf("%s Get method invalid query type: %v", f.method.resPlural, err)
 	}
 	p.withId = true
 	return p
@@ -218,10 +220,10 @@ func (f *paramterFactory) Update() *parameter {
 	query := f.method.Params(2)
 	body := f.method.Params(3)
 	p := f.newParameter()
-	if isStructPointer(body) {
+	if err := isValidType(body); err == nil {
 		p.body = body
 	} else {
-		p.errorMsgs = append(p.errorMsgs, fmt.Sprintf("unsupport body type %s", body.String()))
+		p.errorMsgs = append(p.errorMsgs, fmt.Sprintf("unsupport body type: %v", err))
 	}
 	p.query = query
 	p.withId = true
@@ -233,11 +235,15 @@ func (f *paramterFactory) Delete() *parameter {
 	query := f.method.Params(2)
 	body := f.method.Params(3)
 	p := f.newParameter()
-	if isStructPointer(query) {
+	if err := isValidType(query); err == nil {
 		p.query = query
+	} else {
+		log.Warningf("%s Delete method invalid query type: %v", f.method.resPlural, err)
 	}
-	if isStructPointer(body) {
+	if err := isValidType(body); err == nil {
 		p.body = body
+	} else {
+		log.Warningf("%s Delete method invalid body type: %v", f.method.resPlural, err)
 	}
 	p.withId = true
 	return p
@@ -247,8 +253,10 @@ func (f *paramterFactory) GetSpec() *parameter {
 	// pattern: func(ctx, userCred, query)
 	query := f.method.Params(2)
 	p := f.newParameter()
-	if isStructPointer(query) {
+	if err := isValidType(query); err == nil {
 		p.query = query.Elem
+	} else {
+		log.Warningf("%s GetSpec method %s invalid query type: %v", f.method.resPlural, f.method.String(), err)
 	}
 	p.withId = true
 	return p
@@ -259,10 +267,14 @@ func (f *paramterFactory) PerformAction() *parameter {
 	query := f.method.Params(2)
 	body := f.method.Params(3)
 	p := f.newParameter()
-	if isStructPointer(body) {
+	if err := isValidType(body); err == nil {
 		p.body = body
+	} else {
+		log.Warningf("%s PerformAction method %s invalid body type: %v", f.method.resPlural, f.method.String(), err)
 	}
-	p.query = query
+	if err := isValidType(query); err == nil {
+		p.query = query
+	}
 	p.withId = true
 	return p
 }
@@ -428,10 +440,10 @@ func (f *responseFactory) resultByMethod(method *Method, resultIdx int, bodyKey 
 	sig := method.Signature()
 	params := sig.Results
 	out := params[resultIdx]
-	if isStructPointer(out) {
+	if err := isValidType(out); err == nil {
 		r.output = out
 	} else if !ignoreErr {
-		r.errorMsgs = append(r.errorMsgs, fmt.Sprintf("unsupport type %s", out.String()))
+		r.errorMsgs = append(r.errorMsgs, fmt.Sprintf("%v", err))
 	}
 	if bodyKey == "" {
 		bodyKey = f.method.resPlural
