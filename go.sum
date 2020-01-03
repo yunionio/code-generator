@@ -33,6 +33,8 @@ github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180112035716-b5829a0278c8 h1:mb7
 github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180112035716-b5829a0278c8/go.mod h1:T9M45xf79ahXVelWoOBmH0y4aC1t5kXO5BxwyakgIGA=
 github.com/aliyun/aliyun-oss-go-sdk v0.0.0-20181116160301-c6838fdc33ed h1:8Nj1ihALo/UVM2EnOVQ1EY/kwNKRwLx1GW/z3Y65czY=
 github.com/aliyun/aliyun-oss-go-sdk v0.0.0-20181116160301-c6838fdc33ed/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
+github.com/aliyun/aliyun-oss-go-sdk v2.0.4+incompatible h1:EaK5256H3ELiyaq5O/Zwd6fnghD6DqmZDQmmzzJklUU=
+github.com/aliyun/aliyun-oss-go-sdk v2.0.4+incompatible/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
 github.com/anacrolix/dht v0.0.0-20180412060941-24cbf25b72a4/go.mod h1:hQfX2BrtuQsLQMYQwsypFAab/GvHg8qxwVi4OJdR1WI=
 github.com/anacrolix/dht v0.0.0-20181127122252-acaa69c368bb/go.mod h1:Z/mP+H70xwnUv957UXVkTrzYRhKs0mGjS0lyqS331g4=
 github.com/anacrolix/dht v0.0.0-20181129074040-b09db78595aa h1:5RyX9Tvqa9oewlJhFihkxe8biS0ojTlrNU3ryqm5g2s=
@@ -416,6 +418,7 @@ github.com/stretchr/testify v1.2.1/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXf
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/syncthing/syncthing v0.14.48-rc.4/go.mod h1:nw3siZwHPA6M8iSfjDCWQ402eqvEIasMQOE8nFOxy7M=
 github.com/tencentcloud/tencentcloud-sdk-go v0.0.0-20181108132626-805d01dd0e2e h1:CtKVGXKh2bfmepZ/YogAjvL/CrSy9NGZET500K7arf4=
 github.com/tencentcloud/tencentcloud-sdk-go v0.0.0-20181108132626-805d01dd0e2e/go.mod h1:0PfYow01SHPMhKY31xa+EFz2RStxIqj6JFAJS+IkCi4=
@@ -615,6 +618,9 @@ yunion.io/x/executor v0.0.0-20191202093616-92e2e6119257/go.mod h1:Uxuou9WQIeJXNp
 yunion.io/x/jsonutils v0.0.0-20190625054549-a964e1e8a051/go.mod h1:4N0/RVzsYL3kH3WE/H1BjUQdFiWu50JGCFQuuy+Z634=
 yunion.io/x/jsonutils v0.0.0-20191005115334-bb1c187fc0e7 h1:9NcHs2OFMyN8O8SmJ3sFm5AJSVXP3u1N3avJsbyX3RI=
 yunion.io/x/jsonutils v0.0.0-20191005115334-bb1c187fc0e7/go.mod h1:4N0/RVzsYL3kH3WE/H1BjUQdFiWu50JGCFQuuy+Z634=
+yunion.io/x/jsonutils v0.0.0-20191213141000-dfc176a66644/go.mod h1:4N0/RVzsYL3kH3WE/H1BjUQdFiWu50JGCFQuuy+Z634=
+yunion.io/x/jsonutils v0.0.0-20191220095028-7fef3b75f64d h1:58hs2hyO2DgeVQ5i2fAKjg/ooPH0q4+ALEnqtxjn7DA=
+yunion.io/x/jsonutils v0.0.0-20191220095028-7fef3b75f64d/go.mod h1:4N0/RVzsYL3kH3WE/H1BjUQdFiWu50JGCFQuuy+Z634=
 yunion.io/x/log v0.0.0-20190514041436-04ce53b17c6b/go.mod h1:+gauLs73omeJAPlsXcevLsJLKixV+sR/E7WSYTSx1fE=
 yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d h1:59zrDL7Ft+hDukguJRmLr/Gdu/9V75x+yX99ovZwfaA=
 yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d/go.mod h1:LC6f/4FozL0iaAbnFt2eDX9jlsyo3WiOUPm03d7+U4U=
@@ -622,9 +628,16 @@ yunion.io/x/pkg v0.0.0-20190620104149-945c25821dbf/go.mod h1:t6rEGG2sQ4J7DhFxSZV
 yunion.io/x/pkg v0.0.0-20190628082551-f4033ba2ea30/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/pkg v0.0.0-20191121110824-e03b47b93fe0 h1:gMENCnVkKO5BlwtbKSKW5liEeHk8FHDxxcFXZcdhlxk=
 yunion.io/x/pkg v0.0.0-20191121110824-e03b47b93fe0/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
+yunion.io/x/pkg v0.0.0-20191213141200-9b18cc7f696e h1:zqci0LwvSvQtBg1d3lNhAZs13mkTM/fetang47/mRYA=
+yunion.io/x/pkg v0.0.0-20191213141200-9b18cc7f696e/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
+yunion.io/x/pkg v0.0.0-20191221094533-5097f12f41ac h1:upUF6LBhCKx9c/OUzSUwfv50oCtU4LLmO+UtnKEQsg8=
+yunion.io/x/pkg v0.0.0-20191221094533-5097f12f41ac/go.mod h1:t6rEGG2sQ4J7DhFxSZVOTjNd0YO/KlfWQyK1W4tog+E=
 yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e h1:v+EzIadodSwkdZ/7bremd7J8J50Cise/HCylsOJngmo=
 yunion.io/x/s3cli v0.0.0-20190917004522-13ac36d8687e/go.mod h1:0iFKpOs1y4lbCxeOmq3Xx/0AcQoewVPwj62eRluioEo=
 yunion.io/x/sqlchemy v0.0.0-20191122085525-2d3bfdb3f51c h1:4zMTt6JASU+hwm9AOb1sQkAgXlKbludSIQ6G7i7mPPA=
 yunion.io/x/sqlchemy v0.0.0-20191122085525-2d3bfdb3f51c/go.mod h1:FTdwPdGhMgh4E+UFXc9klI1Ok34fMuybTT+jLhOaIjI=
+yunion.io/x/sqlchemy v0.0.0-20191217082202-5f99691a51c9/go.mod h1:FTdwPdGhMgh4E+UFXc9klI1Ok34fMuybTT+jLhOaIjI=
+yunion.io/x/sqlchemy v0.0.0-20191226074733-6eb73845bfb7 h1:nK047S9fIjIBkB9Yyo2e6itUA7TpmFsd7/a6mGKjNU0=
+yunion.io/x/sqlchemy v0.0.0-20191226074733-6eb73845bfb7/go.mod h1:FTdwPdGhMgh4E+UFXc9klI1Ok34fMuybTT+jLhOaIjI=
 yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3 h1:bfC8EhXYvyGYldRWlzxiCM39Zfj3s3+zham9mW2h2LE=
 yunion.io/x/structarg v0.0.0-20190809075558-115bed041de3/go.mod h1:EP6NSv2C0zzqBDTKumv8hPWLb3XvgMZDHQRfyuOrQng=

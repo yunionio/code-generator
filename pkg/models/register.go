@@ -13,13 +13,20 @@ import (
 )
 
 func init() {
-	app := appsrv.NewApplication("", 1, false)
 	for _, f := range []func(*appsrv.Application){
 		computesvc.InitHandlers,
 		imagesvc.InitHandlers,
 		identitysvc.InitHandlers,
 	} {
+		app := appsrv.NewApplication("", 1, false)
 		f(app)
+		// hack: delete duplicate tasks model register
+		for _, key := range []string{
+			"task", "subtask", "taskobject", "user", "tenant",
+			"shared_resource", "quota_usage", "quota_pending_usage",
+			"event", "metadata"} {
+			delete(db.GlobalModelManagerTables(), key)
+		}
 	}
 	for _, man := range db.GlobalModelManagerTables() {
 		RegisterModelManager(man)
