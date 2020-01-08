@@ -195,7 +195,7 @@ func (f *paramterFactory) List() *parameter {
 	query := f.method.Params(3)
 	p := f.newParameter()
 	if err := isValidType(query); err == nil {
-		p.query = query.Elem
+		p.query = GetValidType(query)
 	} else {
 		p.errorMsgs = append(p.errorMsgs, fmt.Sprintf("unsupport query type: %v", err))
 	}
@@ -207,7 +207,7 @@ func (f *paramterFactory) Get() *parameter {
 	query := f.method.Params(2)
 	p := f.newParameter()
 	if err := isValidType(query); err == nil {
-		p.query = query.Elem
+		p.query = GetValidType(query)
 	} else {
 		log.Warningf("%s Get method invalid query type: %v", f.method.resPlural, err)
 	}
@@ -254,7 +254,7 @@ func (f *paramterFactory) GetSpec() *parameter {
 	query := f.method.Params(2)
 	p := f.newParameter()
 	if err := isValidType(query); err == nil {
-		p.query = query.Elem
+		p.query = GetValidType(query)
 	} else {
 		log.Warningf("%s GetSpec method %s invalid query type: %v", f.method.resPlural, f.method.String(), err)
 	}
