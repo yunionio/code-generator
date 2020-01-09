@@ -11,7 +11,12 @@ import (
 )
 
 func EndWithResourceBase(t *types.Type) bool {
-	resBases := []string{"ResourceBase", "JointsBase", "SharableBaseResource"}
+	resBases := []string{
+		"ResourceBase",
+		"JointsBase",
+		"SharableBaseResource",
+		"IdentityBaseResource",
+	}
 	for _, rb := range resBases {
 		if strings.HasSuffix(t.Name.Name, rb) {
 			return true
