@@ -215,7 +215,8 @@ func NewSwaggerGen(sanitizedName, sourcePackage string, pkgTypes []*types.Type) 
 		modelManagers: make(map[string]*types.Type),
 	}
 	gen.collectTypes(pkgTypes)
-	klog.V(5).Infof("modelTypes: %v, modelManagers: %v", gen.modelTypes.List(), gen.modelManagers)
+	//klog.V(5).Infof("modelTypes: %v, modelManagers: %v", gen.modelTypes.List(), gen.modelManagers)
+	log.Infof("modelTypes: %v, modelManagers: %v", gen.modelTypes.List(), gen.modelManagers)
 	return gen
 }
 

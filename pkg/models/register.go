@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"reflect"
 
 	"k8s.io/gengo/types"
@@ -13,6 +14,16 @@ import (
 )
 
 func init() {
+	cleanF := func(man map[string]db.IModelManager) {
+		for key, _ := range man {
+			delete(man, key)
+		}
+	}
+	registerF := func(man map[string]db.IModelManager) {
+		for _, man := range db.GlobalModelManagerTables() {
+			RegisterModelManager(man)
+		}
+	}
 	for _, f := range []func(*appsrv.Application){
 		computesvc.InitHandlers,
 		imagesvc.InitHandlers,
@@ -20,16 +31,9 @@ func init() {
 	} {
 		app := appsrv.NewApplication("", 1, false)
 		f(app)
-		// hack: delete duplicate tasks model register
-		for _, key := range []string{
-			"task", "subtask", "taskobject", "user", "tenant",
-			"shared_resource", "quota_usage", "quota_pending_usage",
-			"event", "metadata"} {
-			delete(db.GlobalModelManagerTables(), key)
-		}
-	}
-	for _, man := range db.GlobalModelManagerTables() {
-		RegisterModelManager(man)
+		registerF(db.GlobalModelManagerTables())
+		// hack: clean all model manager to avoid duplicate registered
+		cleanF(db.GlobalModelManagerTables())
 	}
 }
 
@@ -39,15 +43,19 @@ func GlobalManagers() map[string]db.IModelManager {
 	return globalManagers
 }
 
-func RegisterModelManager(man db.IModelManager) {
-	if globalManagers == nil {
-		globalManagers = make(map[string]db.IModelManager)
-	}
+func GetModelManagerKey(man db.IModelManager) string {
 	manType := reflect.TypeOf(man)
 	if manType.Kind() == reflect.Ptr {
 		manType = manType.Elem()
 	}
-	globalManagers[manType.Name()] = man
+	return fmt.Sprintf("%s.%s", manType.PkgPath(), manType.Name())
+}
+
+func RegisterModelManager(man db.IModelManager) {
+	if globalManagers == nil {
+		globalManagers = make(map[string]db.IModelManager)
+	}
+	globalManagers[GetModelManagerKey(man)] = man
 }
 
 func GetModelManager(typeName string) db.IModelManager {
@@ -58,5 +66,6 @@ func GetModelManagerByType(t *types.Type) db.IModelManager {
 	if t == nil {
 		return nil
 	}
-	return GetModelManager(t.Name.Name)
+	// t.String() is pkgPath.typeName, e.g:yunion.io/x/onecloud/pkg/keystone/models.SAssignmentManager
+	return GetModelManager(t.String())
 }
