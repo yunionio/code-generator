@@ -35,6 +35,7 @@ type generateOption struct {
 	UIVersion string
 	OutputDir string
 	Serve     bool
+	NoOpen    bool
 	ServeAddr string
 	ServePort int
 }
@@ -112,7 +113,8 @@ func initGenerateCmdOpts(flagSet *flag.FlagSet, cfg *generateOption) {
 	flagSet.StringVar(&cfg.CDNPrefix, "cdn", "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui", "swagger-ui cdn prefix")
 	flagSet.StringVar(&cfg.UIVersion, "ui-version", "3.23.11", "swagger ui version")
 	flagSet.BoolVarP(&cfg.Serve, "serve", "s", false, "serve as http static server and open browser view site")
-	flagSet.StringVar(&cfg.ServeAddr, "serve-addr", "127.0.0.1", "server listen address")
+	flagSet.BoolVar(&cfg.NoOpen, "no-open", false, "Not open UI in browser")
+	flagSet.StringVar(&cfg.ServeAddr, "serve-addr", "", "server listen address")
 	flagSet.IntVarP(&cfg.ServePort, "serve-port", "p", 0, "server listen port, random defaultly")
 }
 
@@ -170,6 +172,16 @@ func doGenerate(cfg *generateOption) error {
 	return nil
 }
 
+func getLocalIP() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "", errors.Wrap(err, "dial 8.8.8.8:80")
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String(), nil
+}
+
 func serveHTTP(cfg *generateOption) error {
 	if !cfg.Serve {
 		return nil
@@ -186,6 +198,14 @@ func serveHTTP(cfg *generateOption) error {
 		ch <- true
 	}()
 	url := "http://" + listener.Addr().String()
+	if cfg.ServeAddr == "" {
+		addr, err := getLocalIP()
+		if err == nil {
+			url = fmt.Sprintf("http://%s:%d", addr, cfg.ServePort)
+		} else {
+			log.Errorf("Get local ip: %v", err)
+		}
+	}
 	log.Infof("Serve at address: %s", url)
 	for i := 0; i < 3; i++ {
 		_, err = http.Get(url)
@@ -193,8 +213,10 @@ func serveHTTP(cfg *generateOption) error {
 	if err != nil {
 		return err
 	}
-	if err := open.Run(url); err != nil {
-		return err
+	if !cfg.NoOpen {
+		if err := open.Run(url); err != nil {
+			log.Errorf("open %s: %v", url, err)
+		}
 	}
 	<-ch
 	return nil
