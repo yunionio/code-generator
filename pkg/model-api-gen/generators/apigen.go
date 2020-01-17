@@ -379,13 +379,22 @@ type Member struct {
 	namer        string
 	embedded     bool
 	useInterface bool
+	commentLines []string
 }
 
-func NewMember(name string) *Member {
+func NewMember(name string, commentLines []string) *Member {
+	clines := []string{}
+	for _, cl := range commentLines {
+		if len(cl) == 0 {
+			continue
+		}
+		clines = append(clines, fmt.Sprintf("// %s", cl))
+	}
 	return &Member{
-		name:     name,
-		jsonTags: make([]string, 0),
-		namer:    "raw",
+		name:         name,
+		jsonTags:     make([]string, 0),
+		namer:        "raw",
+		commentLines: clines,
 	}
 }
 
@@ -427,9 +436,9 @@ func (m *Member) NoTag() *Member {
 	return m
 }
 
-func NewModelMember(name string, tags ...string) *Member {
+func NewModelMember(name string, commentLines []string, tags ...string) *Member {
 	jName := utils.CamelSplit(name, "_")
-	m := NewMember(name)
+	m := NewMember(name, commentLines)
 	return m.AddTag(jName)
 }
 
@@ -451,6 +460,9 @@ func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
 	} else {
 		ret = fmt.Sprintf("%s %s", namePart, typePart)
 	}
+	if len(m.commentLines) != 0 {
+		ret = fmt.Sprintf("%s\n%s", strings.Join(m.commentLines, "\n"), ret)
+	}
 	if len(m.jsonTags) != 0 {
 		ret = fmt.Sprintf("%s `json:\"%s\"`", ret, strings.Join(m.jsonTags, ","))
 	}
@@ -458,7 +470,7 @@ func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
 }
 
 func (g *apiGen) doBuiltin(m types.Member, sw *generator.SnippetWriter) {
-	NewModelMember(m.Name).Do(sw, g.args(m.Type))
+	NewModelMember(m.Name, m.CommentLines).Do(sw, g.args(m.Type))
 }
 
 var (
@@ -477,12 +489,12 @@ func (g *apiGen) doAlias(member types.Member, sw *generator.SnippetWriter) {
 	name := member.Name
 	mt := member.Type
 	if ct, ok := TypeMap[mt.Name.Name]; ok {
-		m := NewModelMember(name).AddTag(ct.JSONTags...).Type(ct.Type)
+		m := NewModelMember(name, nil).AddTag(ct.JSONTags...).Type(ct.Type)
 		m.Do(sw, nil)
 		return
 	}
 	ut := underlyingType(mt)
-	NewModelMember(name).Do(sw, g.args(ut))
+	NewModelMember(name, nil).Do(sw, g.args(ut))
 }
 
 func (g *apiGen) doSlice(member types.Member, sw *generator.SnippetWriter) {
@@ -493,7 +505,7 @@ func (g *apiGen) doStruct(member types.Member, sw *generator.SnippetWriter) {
 	mt := member.Type
 	klog.V(5).Infof("doStruct for %s", mt.Name.String())
 	//inPkg := g.inSourcePackage(member.Type)
-	m := NewModelMember(member.Name)
+	m := NewModelMember(member.Name, member.CommentLines)
 	if member.Embedded {
 		m.Embedded()
 		m.NoTag()
@@ -512,7 +524,7 @@ func (g *apiGen) doInterface(m types.Member, sw *generator.SnippetWriter) {
 	if m.Embedded {
 		klog.Fatalf("%s used as embedded interface", m.String())
 	}
-	mem := NewModelMember(m.Name)
+	mem := NewModelMember(m.Name, m.CommentLines)
 	if g.inJSONUtilsPackage(m.Type) {
 		mem.UseInterface()
 	}
@@ -541,7 +553,7 @@ func (g *apiGen) getPointerSourcePackageName(t *types.Type) string {
 
 func (g *apiGen) doPointer(m types.Member, sw *generator.SnippetWriter) {
 	t := m.Type
-	mem := NewModelMember(m.Name)
+	mem := NewModelMember(m.Name, m.CommentLines)
 	elem := m.Type.Elem
 	if g.inSourcePackage(elem) {
 		mem.Type(g.getPointerSourcePackageName(t))
