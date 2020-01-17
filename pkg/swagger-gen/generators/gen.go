@@ -468,10 +468,10 @@ func (p *typeParser) getM() *Method {
 			paramsLen := len(sig.Parameters)
 			retLen := len(sig.Results)
 			// GetExtraDetails(context.Context, userCred mcclient.TokenCredential, query Object) (Object, error)
-			if paramsLen != 3 || retLen != 2 {
-				return false
+			if (paramsLen == 3 || paramsLen == 4) && retLen == 2 {
+				return true
 			}
-			return true
+			return false
 		})
 }
 
