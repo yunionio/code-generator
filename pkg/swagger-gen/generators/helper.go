@@ -287,6 +287,8 @@ type parameter struct {
 	query       *types.Type
 	body        *types.Type
 
+	paths map[string]string
+
 	errorMsgs []string
 }
 
@@ -345,6 +347,11 @@ func (r parameter) do(sw *generator.SnippetWriter, h *snippetWriter) {
 		h.line("required:true")
 		sw.Do("Id string `json:\"id\"`\n", nil)
 	}
+	for k, v := range r.paths {
+		h.line(v)
+		h.line("in:path")
+		sw.Do(fmt.Sprintf("%s string `json:\"%s\"`\n", strings.Title(k), k), nil)
+	}
 	query := r.getQuery()
 	if query != nil {
 		args := getArgs(query)
@@ -376,6 +383,10 @@ type response struct {
 	bodyKey string
 	isList  bool
 
+	isListOffset bool
+
+	headers map[string]string
+
 	errorMsgs []string
 }
 
@@ -387,6 +398,11 @@ func (r response) Do(sw *generator.SnippetWriter) {
 	h := newSW(sw)
 	sw.Do(fmt.Sprintf("// swagger:response %s\n", r.id), nil)
 	sw.Do(fmt.Sprintf("type %s struct {\n", r.id), nil)
+	for k, v := range r.headers {
+		h.line(v)
+		h.line("in:header")
+		sw.Do(fmt.Sprintf("_ string `json:\"%s\"`\n", k), nil)
+	}
 	output := r.getOutput()
 	args := getArgs(output)
 	if output != nil {
@@ -394,7 +410,7 @@ func (r response) Do(sw *generator.SnippetWriter) {
 		if r.bodyKey != "" {
 			r.bodyStruct(output, sw)
 		} else {
-			sw.Do("$.type|raw$", args)
+			sw.Do("Body $.type|raw$\n", args)
 		}
 	}
 	sw.Do("}\n", nil)
@@ -405,9 +421,11 @@ func (r response) bodyStruct(output *types.Type, sw *generator.SnippetWriter) {
 	sw.Do("Body struct {\n", nil)
 	if r.isList {
 		sw.Do(fmt.Sprintf("Output []$.type|raw$ `json:\"%s\"`\n", r.bodyKey), args)
-		sw.Do("Limit int `json:\"limit\"`\n", nil)
-		sw.Do("Total int `json:\"total\"`\n", nil)
-		sw.Do("Offset int `json:\"offset\"`\n", nil)
+		if r.isListOffset {
+			sw.Do("Limit int `json:\"limit\"`\n", nil)
+			sw.Do("Total int `json:\"total\"`\n", nil)
+			sw.Do("Offset int `json:\"offset\"`\n", nil)
+		}
 	} else {
 		sw.Do(fmt.Sprintf("Output $.type|raw$ `json:\"%s\"`\n", r.bodyKey), args)
 	}
@@ -463,6 +481,7 @@ func (f *responseFactory) ResultByGetMethod(getMethod *Method) *response {
 func (f *responseFactory) ListResult(getMethod *Method) *response {
 	r := f.ResultByMethod(getMethod, 0, f.method.resPlural)
 	r.isList = true
+	r.isListOffset = true
 	return r
 }
 
@@ -488,6 +507,8 @@ func (c *SwaggerConfigRoute) newRoute(input *parameter, output *response) *route
 type SwaggerConfigParam struct {
 	Body  *types.Type
 	Query *types.Type
+	Paths map[string]string
+	Key   string
 }
 
 func (c *SwaggerConfigParam) newParameter(t *types.Type) *parameter {
@@ -495,12 +516,18 @@ func (c *SwaggerConfigParam) newParameter(t *types.Type) *parameter {
 	param := newParameter("", "", privateName(n, t.Name.Name))
 	param.query = c.Query
 	param.body = c.Body
+	param.paths = c.Paths
+	param.singular = c.Key
 	return param
 }
 
 type SwaggerConfigResponse struct {
 	Output  *types.Type
 	BodyKey string
+	Headers map[string]string
+
+	IsList       bool
+	IsListOffset bool
 }
 
 func (c *SwaggerConfigResponse) newResponse(t *types.Type) *response {
@@ -508,7 +535,11 @@ func (c *SwaggerConfigResponse) newResponse(t *types.Type) *response {
 	r := &response{
 		id:        fmt.Sprintf("%sOutput", privateName(n, t.Name.Name)),
 		bodyKey:   c.BodyKey,
+		headers:   c.Headers,
 		errorMsgs: make([]string, 0),
+		isList:    c.IsList,
+
+		isListOffset: c.IsListOffset,
 	}
 	r.output = c.Output
 	return r
