@@ -22,14 +22,49 @@ import (
 )
 
 const (
-	tagIgnoreName    = "onecloud:swagger-gen-ignore"
-	tagRouteMethod   = "onecloud:swagger-gen-route-method"
-	tagRoutePath     = "onecloud:swagger-gen-route-path"
-	tagRouteTag      = "onecloud:swagger-gen-route-tag"
+	// 设置该注释，相应的资源结构体或者方法会被过滤
+	tagIgnoreName = "onecloud:swagger-gen-ignore"
+
+	// 设置 swagger route 的方法
+	tagRouteMethod = "onecloud:swagger-gen-route-method"
+
+	// 设置 swagger route 的路径
+	tagRoutePath = "onecloud:swagger-gen-route-path"
+
+	// 设置 swagger route 的 tag，
+	// 可以注释多次，会转换成多个tag
+	tagRouteTag = "onecloud:swagger-gen-route-tag"
+
+	// 设置路径中的请求参数，对每一个路径参数，该值需要设置两次
+	// 第一次设置参数名
+	// 第二次设置参数的说明
+	tagParamPath = "onecloud:swagger-gen-param-path"
+
+	// 设置 swagger 的 query param 从函数的第几个输入参数获取
 	tagParamQueryIdx = "onecloud:swagger-gen-param-query-index"
-	tagParamBodyIdx  = "onecloud:swagger-gen-param-body-index"
-	tagRespIdx       = "onecloud:swagger-gen-resp-index"
-	tagRespBodyKey   = "onecloud:swagger-gen-resp-body-key"
+
+	// 设置 swagger 的 body param 从函数的第几个输入参数获取
+	tagParamBodyIdx = "onecloud:swagger-gen-param-body-index"
+
+	// 如果该值非空，则上述body结构体将以该key嵌套到新的结构体作为输入body结构体
+	tagParamBodyKey = "onecloud:swagger-gen-param-body-key"
+
+	// 设置返回header的参数，该值需要设置两次
+	// 第一次设置header的key
+	// 第二次设置该header的说明
+	tagRespHeader = "onecloud:swagger-gen-resp-header"
+
+	// 设置 swagger 的返回 body 的结构体从函数的第几个返回值获取
+	tagRespIdx = "onecloud:swagger-gen-resp-index"
+
+	// 如果该值非空，则上述结构体会以该key嵌套在新的结构体中返回
+	tagRespBodyKey = "onecloud:swagger-gen-resp-body-key"
+
+	// 如果该值设置，则上述结构体会以数组返回
+	tagRespBodyList = "onecloud:swagger-gen-resp-body-list"
+
+	// 如果该值设置，则上述结构体不仅以数组返回，而且携带偏移量参数
+	tagRespBodyListOffset = "onecloud:swagger-gen-resp-body-list-offset"
 )
 
 func extractTagByName(comments []string, tagName string) []string {
@@ -63,7 +98,7 @@ func extractSwaggerRoute(comments []string) *SwaggerConfigRoute {
 	return route
 }
 
-func fetchTagIdx(ut *types.Type, comments []string, tagName string) *types.Type {
+func fetchTagIdx(params []*types.Type, comments []string, tagName string) *types.Type {
 	vals := extractTagByName(comments, tagName)
 	if len(vals) == 0 {
 		return nil
@@ -73,7 +108,7 @@ func fetchTagIdx(ut *types.Type, comments []string, tagName string) *types.Type 
 		log.Errorf("invalid tag %s=%s", tagName, vals[0])
 		return nil
 	}
-	params := ut.Signature.Parameters
+	// params := ut.Signature.Parameters
 	if idx >= len(params) {
 		log.Errorf("invalid tag %s=%s, only %d arguments", tagName, vals[0], len(params))
 		return nil
@@ -82,38 +117,67 @@ func fetchTagIdx(ut *types.Type, comments []string, tagName string) *types.Type 
 }
 
 func extractSwaggerParam(ut *types.Type, comments []string) *SwaggerConfigParam {
-	query := fetchTagIdx(ut, comments, tagParamQueryIdx)
-	body := fetchTagIdx(ut, comments, tagParamBodyIdx)
-	if query == nil && body == nil {
+	var paths map[string]string
+	vals := extractTagByName(comments, tagParamPath)
+	if len(vals) > 0 {
+		paths = make(map[string]string)
+		for i := 0; i < len(vals); i += 2 {
+			k := vals[i]
+			v := k
+			if i+1 < len(vals) {
+				v = vals[i+1]
+			}
+			paths[k] = v
+		}
+	}
+	query := fetchTagIdx(ut.Signature.Parameters, comments, tagParamQueryIdx)
+	body := fetchTagIdx(ut.Signature.Parameters, comments, tagParamBodyIdx)
+	if paths == nil && query == nil && body == nil {
 		return nil
 	}
 	param := new(SwaggerConfigParam)
 	param.Query = query
 	param.Body = body
+	param.Paths = paths
+	vals = extractTagByName(comments, tagParamBodyKey)
+	if len(vals) > 0 {
+		param.Key = vals[0]
+	}
 	return param
 }
 
 func extractSwaggerResponse(ut *types.Type, comments []string) *SwaggerConfigResponse {
-	vals := extractTagByName(comments, tagRespIdx)
-	if len(vals) == 0 {
+	respType := fetchTagIdx(ut.Signature.Results, comments, tagRespIdx)
+	if respType == nil {
 		return nil
 	}
+
 	resp := new(SwaggerConfigResponse)
-	idx, err := strconv.Atoi(vals[0])
-	if err != nil {
-		log.Errorf("invalid tag %s=%s", tagRespIdx, vals[0])
-		return nil
-	}
-	results := ut.Signature.Results
-	if idx >= len(results) {
-		log.Errorf("invalid tag %s=%s, only %d results", tagRespIdx, vals[0], len(results))
-		return nil
-	}
-	vals = extractTagByName(comments, tagRespBodyKey)
+	vals := extractTagByName(comments, tagRespBodyKey)
 	if len(vals) > 0 {
 		resp.BodyKey = vals[0]
 	}
-	resp.Output = results[idx]
+	vals = extractTagByName(comments, tagRespHeader)
+	if len(vals) > 0 {
+		resp.Headers = make(map[string]string)
+		for i := 0; i < len(vals); i += 2 {
+			k := vals[i]
+			v := k
+			if i+1 < len(vals) {
+				v = vals[i+1]
+			}
+			resp.Headers[k] = v
+		}
+	}
+	resp.Output = respType
+	vals = extractTagByName(comments, tagRespBodyList)
+	if len(vals) > 0 {
+		resp.IsList = true
+		vals = extractTagByName(comments, tagRespBodyListOffset)
+		if len(vals) > 0 {
+			resp.IsListOffset = true
+		}
+	}
 	return resp
 }
 
