@@ -16,7 +16,7 @@ require (
 	k8s.io/klog v1.0.0
 	yunion.io/x/log v0.0.0-20190629062853-9f6483a7103d
 	yunion.io/x/onecloud v0.0.0-00010101000000-000000000000
-	yunion.io/x/pkg v0.0.0-20200103043034-27c6f82160fa
+	yunion.io/x/pkg v0.0.0-20200304112442-9dae9351325e
 )
 
 replace (

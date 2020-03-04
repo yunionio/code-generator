@@ -14,6 +14,7 @@ import (
 	"k8s.io/gengo/types"
 	"k8s.io/klog"
 
+	"yunion.io/x/pkg/util/reflectutils"
 	"yunion.io/x/pkg/util/sets"
 	"yunion.io/x/pkg/utils"
 
@@ -425,9 +426,11 @@ func (m *Member) UseInterface() *Member {
 }
 
 func (m *Member) AddTag(tags ...string) *Member {
-	tSets := sets.NewString(tags...)
-	tSets.Insert(m.jsonTags...)
-	m.jsonTags = tSets.List()
+	for _, t := range tags {
+		if !utils.IsInStringArray(t, m.jsonTags) {
+			m.jsonTags = append(m.jsonTags, t)
+		}
+	}
 	return m
 }
 
@@ -436,10 +439,14 @@ func (m *Member) NoTag() *Member {
 	return m
 }
 
-func NewModelMember(name string, commentLines []string, tags ...string) *Member {
-	jName := utils.CamelSplit(name, "_")
-	m := NewMember(name, commentLines)
-	return m.AddTag(jName)
+func memberJsonName(m types.Member) string {
+	info := reflectutils.ParseFieldJsonInfo(m.Name, reflect.StructTag(m.Tags))
+	return info.MarshalName()
+}
+
+func NewModelMember(member types.Member) *Member {
+	m := NewMember(member.Name, member.CommentLines)
+	return m.AddTag(memberJsonName(member))
 }
 
 func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
@@ -470,7 +477,7 @@ func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
 }
 
 func (g *apiGen) doBuiltin(m types.Member, sw *generator.SnippetWriter) {
-	NewModelMember(m.Name, m.CommentLines).Do(sw, g.args(m.Type))
+	NewModelMember(m).Do(sw, g.args(m.Type))
 }
 
 var (
@@ -486,15 +493,14 @@ var (
 )
 
 func (g *apiGen) doAlias(member types.Member, sw *generator.SnippetWriter) {
-	name := member.Name
 	mt := member.Type
 	if ct, ok := TypeMap[mt.Name.Name]; ok {
-		m := NewModelMember(name, nil).AddTag(ct.JSONTags...).Type(ct.Type)
+		m := NewModelMember(member).AddTag(ct.JSONTags...).Type(ct.Type)
 		m.Do(sw, nil)
 		return
 	}
 	ut := underlyingType(mt)
-	NewModelMember(name, nil).Do(sw, g.args(ut))
+	NewModelMember(member).Do(sw, g.args(ut))
 }
 
 func (g *apiGen) doSlice(member types.Member, sw *generator.SnippetWriter) {
@@ -505,7 +511,7 @@ func (g *apiGen) doStruct(member types.Member, sw *generator.SnippetWriter) {
 	mt := member.Type
 	klog.V(5).Infof("doStruct for %s", mt.Name.String())
 	//inPkg := g.inSourcePackage(member.Type)
-	m := NewModelMember(member.Name, member.CommentLines)
+	m := NewModelMember(member)
 	if member.Embedded {
 		m.Embedded()
 		m.NoTag()
@@ -524,7 +530,7 @@ func (g *apiGen) doInterface(m types.Member, sw *generator.SnippetWriter) {
 	if m.Embedded {
 		klog.Fatalf("%s used as embedded interface", m.String())
 	}
-	mem := NewModelMember(m.Name, m.CommentLines)
+	mem := NewModelMember(m)
 	if g.inJSONUtilsPackage(m.Type) {
 		mem.UseInterface()
 	}
@@ -553,7 +559,7 @@ func (g *apiGen) getPointerSourcePackageName(t *types.Type) string {
 
 func (g *apiGen) doPointer(m types.Member, sw *generator.SnippetWriter) {
 	t := m.Type
-	mem := NewModelMember(m.Name, m.CommentLines)
+	mem := NewModelMember(m)
 	elem := m.Type.Elem
 	if g.inSourcePackage(elem) {
 		mem.Type(g.getPointerSourcePackageName(t))
