@@ -43,7 +43,11 @@ func IsResourceModel(t *types.Type, isCommonDBPkg bool) bool {
 }
 
 func InSourcePackage(t *types.Type, srcPkg string) bool {
-	return t.Name.Package == srcPkg
+	return IsSamePackage(t, srcPkg)
+}
+
+func IsSamePackage(t *types.Type, pkgPath string) bool {
+	return t.Name.Package == pkgPath
 }
 
 func CollectModelManager(srcPkg string, pkgTypes []*types.Type, modelTypes sets.String, modelManagers map[string]*types.Type) {

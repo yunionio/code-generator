@@ -103,7 +103,7 @@ func Packages(ctx *generator.Context, arguments *args.GeneratorArgs) generator.P
 						// Always generate a "doc.go" file.
 						// generator.DefaultGen{OptionalName: "doc"},
 						// Generate api types by model.
-						NewApiGen(arguments.OutputFileBaseName, pkg.Path, "", ctx.Order),
+						NewApiGen(arguments.OutputFileBaseName, pkg.Path, "", ctx.Order, arguments.OutputPackagePath),
 					}
 				},
 			})
@@ -125,6 +125,7 @@ type apiGen struct {
 	imports            namer.ImportTracker
 	needImportPackages sets.String
 	apisPkg            string
+	outputPackage      string
 }
 
 func isCommonDBPackage(pkg string) bool {
@@ -143,7 +144,7 @@ func reviseImportPath() {
 	imports.LocalPrefix = "yunion.io/x/:yunion.io/x/onecloud"
 }
 
-func NewApiGen(sanitizedName, sourcePackage, apisPkg string, pkgTypes []*types.Type) generator.Generator {
+func NewApiGen(sanitizedName, sourcePackage, apisPkg string, pkgTypes []*types.Type, outputPkg string) generator.Generator {
 	reviseImportPath()
 	if apisPkg == "" {
 		apisPkg = defaultAPIsPkg(sourcePackage)
@@ -159,6 +160,7 @@ func NewApiGen(sanitizedName, sourcePackage, apisPkg string, pkgTypes []*types.T
 		imports:            generator.NewImportTracker(),
 		needImportPackages: sets.NewString(),
 		apisPkg:            apisPkg,
+		outputPackage:      outputPkg,
 	}
 	gen.collectTypes(pkgTypes)
 	klog.V(1).Infof("sets: %v\ndepsets: %v", gen.modelTypes.List(), gen.modelDependTypes.List())
@@ -518,6 +520,8 @@ func (g *apiGen) doStruct(member types.Member, sw *generator.SnippetWriter) {
 	}
 	if g.inSourcePackage(mt) {
 		m.Namer("public")
+	} else if g.inOutputPackage(mt) {
+		m.Type(mt.Name.Name)
 	} else if outPkg, ok := g.GetInputOutputPackageMap()[mt.Name.Package]; ok {
 		g.needImportPackages.Insert(outPkg)
 		m.Type(fmt.Sprintf("%s.%s", filepath.Base(outPkg), mt.Name.Name))
@@ -539,6 +543,10 @@ func (g *apiGen) doInterface(m types.Member, sw *generator.SnippetWriter) {
 
 func (g *apiGen) inSourcePackage(t *types.Type) bool {
 	return common.InSourcePackage(t, g.sourcePackage)
+}
+
+func (g *apiGen) inOutputPackage(t *types.Type) bool {
+	return common.IsSamePackage(t, g.outputPackage)
 }
 
 func (g *apiGen) inJSONUtilsPackage(t *types.Type) bool {
@@ -565,6 +573,8 @@ func (g *apiGen) doPointer(m types.Member, sw *generator.SnippetWriter) {
 		mem.Type(g.getPointerSourcePackageName(t))
 	} else if g.inJSONUtilsPackage(elem) {
 		mem.UseInterface()
+	} else if g.inOutputPackage(elem) {
+		mem.Type(fmt.Sprintf("*%s", elem.Name.Name))
 	}
 	if m.Embedded {
 		mem.Embedded()
