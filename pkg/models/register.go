@@ -11,6 +11,7 @@ import (
 	computesvc "yunion.io/x/onecloud/pkg/compute/service"
 	imagesvc "yunion.io/x/onecloud/pkg/image/service"
 	identitysvc "yunion.io/x/onecloud/pkg/keystone/service"
+	monitorsvc "yunion.io/x/onecloud/pkg/monitor/service"
 )
 
 func init() {
@@ -28,6 +29,7 @@ func init() {
 		computesvc.InitHandlers,
 		imagesvc.InitHandlers,
 		identitysvc.InitHandlers,
+		monitorsvc.InitHandlers,
 	} {
 		app := appsrv.NewApplication("", 1, false)
 		f(app)
