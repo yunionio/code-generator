@@ -421,15 +421,26 @@ func (m *Method) String() string {
 	return fmt.Sprintf("%s.%s", m.Receiver().String(), m.Name())
 }
 
+func appendMethod(methods []*Method, method *Method) []*Method {
+	find := false
+	for _, m := range methods {
+		if m.name == method.name {
+			find = true
+			break
+		}
+	}
+	if find {
+		return methods
+	}
+	return append(methods, method)
+}
+
 func getTypeMethods(
 	funcPrefixKeyword string,
 	keyword, keywordPlural string,
 	t *types.Type,
 	predicateF func(*Method) bool,
 ) []*Method {
-	if t.Methods == nil {
-		return nil
-	}
 	methods := make([]*Method, 0)
 	for name, m := range t.Methods {
 		if strings.HasPrefix(name, funcPrefixKeyword) && !includeIgnoreTag(m) {
@@ -441,7 +452,16 @@ func getTypeMethods(
 			if !useIt {
 				continue
 			}
-			methods = append(methods, mWrap)
+			methods = appendMethod(methods, mWrap)
+		}
+	}
+	for _, member := range t.Members {
+		if member.Embedded {
+			log.Debugf("[%s] search member %s", t.Name, member.Name)
+			newMethods := getTypeMethods(funcPrefixKeyword, keyword, keywordPlural, member.Type, predicateF)
+			for _, m := range newMethods {
+				methods = appendMethod(methods, m)
+			}
 		}
 	}
 	return methods
