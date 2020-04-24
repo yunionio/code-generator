@@ -341,6 +341,11 @@ func (g *swaggerGen) generateDeclarationCode(t *types.Type, sw *generator.Snippe
 }
 
 func (g *swaggerGen) generateCode(manType *types.Type, modelType *types.Type, sw *generator.SnippetWriter) {
+	if includeIgnoreTag(manType) || includeIgnoreTag(modelType) {
+		// do nothing
+		return
+	}
+
 	manIns := g.getModelManagerInstance(modelType)
 	parser := newTypeParser(manIns, manType, modelType)
 
@@ -357,8 +362,9 @@ func (g *swaggerGen) generateCode(manType *types.Type, modelType *types.Type, sw
 }
 
 func applyGenerateFunc(genFunc func(*Method, *generator.SnippetWriter), getMethods func() []*Method, sw *generator.SnippetWriter) {
-	for _, m := range getMethods() {
-		genFunc(m, sw)
+	methods := getMethods()
+	for i := range methods {
+		genFunc(methods[i], sw)
 	}
 }
 
@@ -442,7 +448,8 @@ func getTypeMethods(
 	predicateF func(*Method) bool,
 ) []*Method {
 	methods := make([]*Method, 0)
-	for name, m := range t.Methods {
+	for name := range t.Methods {
+		m := t.Methods[name]
 		if strings.HasPrefix(name, funcPrefixKeyword) && !includeIgnoreTag(m) {
 			useIt := true
 			mWrap := NewMethod(t, name, m, keyword, keywordPlural)
@@ -456,11 +463,10 @@ func getTypeMethods(
 		}
 	}
 	for _, member := range t.Members {
-		if member.Embedded {
-			log.Debugf("[%s] search member %s", t.Name, member.Name)
+		if member.Embedded && len(extractIgnoreTag(member.CommentLines)) == 0 {
 			newMethods := getTypeMethods(funcPrefixKeyword, keyword, keywordPlural, member.Type, predicateF)
-			for _, m := range newMethods {
-				methods = appendMethod(methods, m)
+			for i := range newMethods {
+				methods = appendMethod(methods, newMethods[i])
 			}
 		}
 	}
