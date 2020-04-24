@@ -4,19 +4,16 @@ go 1.13
 
 require (
 	github.com/go-openapi/loads v0.19.4
-	github.com/minio/highwayhash v1.0.0 // indirect
 	github.com/pkg/errors v0.8.1
-	github.com/serialx/hashring v0.0.0-20190515033939-7706f26af194 // indirect
 	github.com/skratchdot/open-golang v0.0.0-20190402232053-79abb63cd66e
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
-	github.com/tredoe/osutil v0.0.0-20191018075336-e272fdda81c8 // indirect
 	golang.org/x/tools v0.0.0-20191227053925-7b8e75db28f4
-	k8s.io/gengo v0.0.0-20191120174120-e74f70b9b27e
+	k8s.io/gengo v0.0.0-20200425085600-19394052f0fa
 	k8s.io/klog v1.0.0
+	k8s.io/klog/v2 v2.0.0 // indirect
 	yunion.io/x/log v0.0.0-20200313080802-57a4ce5966b3
-	yunion.io/x/onecloud v0.0.0-00010101000000-000000000000
-	yunion.io/x/pkg v0.0.0-20200312093207-f07f4cb157e0
+	yunion.io/x/pkg v0.0.0-20200416145704-22c189971435
 )
 
 replace (
@@ -34,6 +31,9 @@ replace (
 	k8s.io/component-base => k8s.io/component-base v0.0.0-20190918160511-547f6c5d7090
 	k8s.io/cri-api => k8s.io/cri-api v0.0.0-20190828162817-608eb1dad4ac
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.0.0-20190918163402-db86a8c7bb21
+
+	k8s.io/gengo => github.com/zexi/gengo v0.0.0-20200425085600-19394052f0fa
+
 	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.0.0-20190918161219-8c8f079fddc3
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.0.0-20190918162944-7a93a0ddadd8
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.0.0-20190918162534-de037b596c1e
@@ -46,5 +46,4 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20190918161442-d4c9c65c82af
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.0.0-20190918162410-e45c26d066f2
 	k8s.io/sample-controller => k8s.io/sample-controller v0.0.0-20190918161628-92eb3cb7496c
-	yunion.io/x/onecloud => ../onecloud
 )
