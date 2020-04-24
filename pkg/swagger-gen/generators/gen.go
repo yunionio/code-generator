@@ -341,6 +341,11 @@ func (g *swaggerGen) generateDeclarationCode(t *types.Type, sw *generator.Snippe
 }
 
 func (g *swaggerGen) generateCode(manType *types.Type, modelType *types.Type, sw *generator.SnippetWriter) {
+	if includeIgnoreTag(manType) || includeIgnoreTag(modelType) {
+		// do nothing
+		return
+	}
+
 	manIns := g.getModelManagerInstance(modelType)
 	parser := newTypeParser(manIns, manType, modelType)
 
@@ -357,8 +362,9 @@ func (g *swaggerGen) generateCode(manType *types.Type, modelType *types.Type, sw
 }
 
 func applyGenerateFunc(genFunc func(*Method, *generator.SnippetWriter), getMethods func() []*Method, sw *generator.SnippetWriter) {
-	for _, m := range getMethods() {
-		genFunc(m, sw)
+	methods := getMethods()
+	for i := range methods {
+		genFunc(methods[i], sw)
 	}
 }
 
@@ -421,17 +427,29 @@ func (m *Method) String() string {
 	return fmt.Sprintf("%s.%s", m.Receiver().String(), m.Name())
 }
 
+func appendMethod(methods []*Method, method *Method) []*Method {
+	find := false
+	for _, m := range methods {
+		if m.name == method.name {
+			find = true
+			break
+		}
+	}
+	if find {
+		return methods
+	}
+	return append(methods, method)
+}
+
 func getTypeMethods(
 	funcPrefixKeyword string,
 	keyword, keywordPlural string,
 	t *types.Type,
 	predicateF func(*Method) bool,
 ) []*Method {
-	if t.Methods == nil {
-		return nil
-	}
 	methods := make([]*Method, 0)
-	for name, m := range t.Methods {
+	for name := range t.Methods {
+		m := t.Methods[name]
 		if strings.HasPrefix(name, funcPrefixKeyword) && !includeIgnoreTag(m) {
 			useIt := true
 			mWrap := NewMethod(t, name, m, keyword, keywordPlural)
@@ -441,7 +459,15 @@ func getTypeMethods(
 			if !useIt {
 				continue
 			}
-			methods = append(methods, mWrap)
+			methods = appendMethod(methods, mWrap)
+		}
+	}
+	for _, member := range t.Members {
+		if member.Embedded && len(extractIgnoreTag(member.CommentLines)) == 0 {
+			newMethods := getTypeMethods(funcPrefixKeyword, keyword, keywordPlural, member.Type, predicateF)
+			for i := range newMethods {
+				methods = appendMethod(methods, newMethods[i])
+			}
 		}
 	}
 	return methods

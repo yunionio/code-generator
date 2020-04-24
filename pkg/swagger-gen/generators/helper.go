@@ -313,8 +313,10 @@ func getValidType(t *types.Type) *types.Type {
 	switch t.Kind {
 	case types.Pointer:
 		return t.Elem
-	case types.Struct:
+	case types.Struct, types.Map, types.Slice, types.Builtin:
 		return t
+	case types.Alias:
+		return getValidType(t.Underlying)
 	default:
 		return nil
 	}
