@@ -14,11 +14,10 @@ import (
 	"k8s.io/klog"
 
 	"yunion.io/x/log"
-	"yunion.io/x/onecloud/pkg/cloudcommon/db"
 	"yunion.io/x/pkg/util/sets"
 
 	"yunion.io/x/code-generator/pkg/common"
-	"yunion.io/x/code-generator/pkg/models"
+	"yunion.io/x/code-generator/pkg/common/inflection"
 )
 
 const (
@@ -65,6 +64,11 @@ const (
 
 	// 如果该值设置，则上述结构体不仅以数组返回，而且携带偏移量参数
 	tagRespBodyListOffset = "onecloud:swagger-gen-resp-body-list-offset"
+
+	// 设置 swagger model manager 的单数
+	tagModelSingular = "onecloud:swagger-gen-model-singular"
+	// 设置 swagger model manager 的复数
+	tagModelPlural = "onecloud:swagger-gen-model-plural"
 )
 
 func extractTagByName(comments []string, tagName string) []string {
@@ -195,6 +199,22 @@ func extractSwaggerConfig(ut *types.Type, comments []string) *SwaggerConfig {
 	}
 }
 
+func extractTagSingleValue(t *types.Type, tagKey string) string {
+	vals := extractTagByName(t.CommentLines, tagKey)
+	if len(vals) == 0 {
+		return ""
+	}
+	return vals[0]
+}
+
+func extractSwaggerModelManagerSingular(t *types.Type) string {
+	return extractTagSingleValue(t, tagModelSingular)
+}
+
+func extractSwaggerModelManagerPlural(t *types.Type) string {
+	return extractTagSingleValue(t, tagModelPlural)
+}
+
 func includeIgnoreTag(t *types.Type) bool {
 	vals := extractIgnoreTag(t.CommentLines)
 	if len(vals) != 0 {
@@ -279,7 +299,6 @@ func NewSwaggerGen(sanitizedName, sourcePackage string, pkgTypes []*types.Type) 
 		modelManagers: make(map[string]*types.Type),
 	}
 	gen.collectTypes(pkgTypes)
-	//klog.V(5).Infof("modelTypes: %v, modelManagers: %v", gen.modelTypes.List(), gen.modelManagers)
 	log.Infof("modelTypes: %v, modelManagers: %v", gen.modelTypes.List(), gen.modelManagers)
 	return gen
 }
@@ -292,22 +311,6 @@ func (g *swaggerGen) getModelManager(t *types.Type) *types.Type {
 	return g.modelManagers[t.String()]
 }
 
-func (g *swaggerGen) getModelManagerInstance(t *types.Type) db.IModelManager {
-	mt := g.getModelManager(t)
-	return models.GetModelManagerByType(mt)
-}
-
-func isModelManagerRegistered(mt *types.Type) bool {
-	if mt == nil {
-		return false
-	}
-	man := models.GetModelManagerByType(mt)
-	if man == nil {
-		return false
-	}
-	return true
-}
-
 func (g *swaggerGen) Filter(c *generator.Context, t *types.Type) bool {
 	if includeIgnoreTag(t) {
 		return false
@@ -318,7 +321,7 @@ func (g *swaggerGen) Filter(c *generator.Context, t *types.Type) bool {
 			return true
 		}
 	}
-	if g.modelTypes.Has(t.String()) && isModelManagerRegistered(g.getModelManager(t)) {
+	if g.modelTypes.Has(t.String()) {
 		return true
 	}
 	return false
@@ -330,6 +333,11 @@ func (g *swaggerGen) GenerateType(c *generator.Context, t *types.Type, w io.Writ
 	if t.Kind == types.DeclarationOf {
 		g.generateDeclarationCode(t, sw)
 	} else {
+		mm := g.getModelManager(t)
+		if mm == nil {
+			log.Errorf("Not found model type %s manager", t.String())
+			return nil
+		}
 		g.generateCode(g.getModelManager(t), t, sw)
 	}
 	return sw.Error()
@@ -346,8 +354,7 @@ func (g *swaggerGen) generateCode(manType *types.Type, modelType *types.Type, sw
 		return
 	}
 
-	manIns := g.getModelManagerInstance(modelType)
-	parser := newTypeParser(manIns, manType, modelType)
+	parser := newTypeParser(manType, modelType)
 
 	getM := parser.getM()
 	generateGet(getM, sw)
@@ -474,26 +481,46 @@ func getTypeMethods(
 }
 
 type typeParser struct {
-	managerInstance db.IModelManager
-	manager         *types.Type
-	model           *types.Type
-	singular        string
-	plural          string
+	manager  *types.Type
+	model    *types.Type
+	singular string
+	plural   string
 }
 
-func newTypeParser(manIns db.IModelManager, man *types.Type, model *types.Type) *typeParser {
-	keyword, keywordPlural := getManagerKeywords(manIns)
+func newTypeParser(man *types.Type, model *types.Type) *typeParser {
+	keyword, keywordPlural := getManagerKeywords(man)
 	return &typeParser{
-		managerInstance: manIns,
-		manager:         man,
-		model:           model,
-		singular:        keyword,
-		plural:          keywordPlural,
+		manager:  man,
+		model:    model,
+		singular: keyword,
+		plural:   keywordPlural,
 	}
 }
 
-func getManagerKeywords(man db.IModelManager) (string, string) {
-	return man.Keyword(), man.KeywordPlural()
+func getManagerKeyword(manName string) string {
+	name := strings.TrimSuffix(manName, "Manager")
+	if len(name) == 0 && len(name) == 1 {
+		log.Fatalf("Invalid manager struct name: %s", manName)
+	}
+	isUpper := func(x byte) bool {
+		return 'A' <= x && x <= 'Z'
+	}
+	if strings.HasPrefix(name, "S") && isUpper(name[1]) {
+		name = strings.TrimPrefix(name, "S")
+	}
+	return strings.ToLower(name)
+}
+
+func getManagerKeywords(man *types.Type) (string, string) {
+	singular := extractSwaggerModelManagerSingular(man)
+	if singular == "" {
+		singular = getManagerKeyword(man.Name.Name)
+	}
+	plural := extractSwaggerModelManagerPlural(man)
+	if plural == "" {
+		plural = inflection.Plural(singular)
+	}
+	return singular, plural
 }
 
 func validInputOutput(input, output *types.Type) error {
