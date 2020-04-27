@@ -32,6 +32,8 @@ func NewRootCmd() *cobra.Command {
 type generateOption struct {
 	SpecFiles []string
 	CDNPrefix string
+	Flavor    string
+	RedocURL  string
 	UIVersion string
 	OutputDir string
 	Serve     bool
@@ -67,12 +69,28 @@ func (o generateOption) UICss() string {
 	return o.urlJoin("swagger-ui.css")
 }
 
-func (o generateOption) newUIIndexHTMLConfig() (*UIIndexHTMLConfig, error) {
+func (o generateOption) newUIIndexHTMLConfig() (UITemplateConfig, error) {
 	config := &UIIndexHTMLConfig{
 		UICss:              o.UICss(),
 		BundleJS:           o.BundleJS(),
 		StandalonePresetJS: o.StandalonePresetJS(),
 		URLs:               make([]*SwaggerFile, 0),
+	}
+	loads.AddLoader(fmts.YAMLMatcher, fmts.YAMLDoc)
+	for _, spec := range o.SpecFiles {
+		u, err := newSwaggerFile(spec)
+		if err != nil {
+			return nil, err
+		}
+		config.URLs = append(config.URLs, u)
+	}
+	return config, nil
+}
+
+func (o generateOption) newRedocUIIndexHTMLConfig() (UITemplateConfig, error) {
+	config := &RedocUIIndexConfig{
+		RedocURL: o.RedocURL,
+		URLs:     make([]*SwaggerFile, 0),
 	}
 	loads.AddLoader(fmts.YAMLMatcher, fmts.YAMLDoc)
 	for _, spec := range o.SpecFiles {
@@ -110,7 +128,9 @@ func newGenerateCmd() *cobra.Command {
 func initGenerateCmdOpts(flagSet *flag.FlagSet, cfg *generateOption) {
 	flagSet.StringSliceVarP(&cfg.SpecFiles, "input", "i", nil, "input swagger spec yaml or json file")
 	flagSet.StringVarP(&cfg.OutputDir, "output", "o", "./_output/swagger_site", "generated swagger UI site")
+	flagSet.StringVar(&cfg.Flavor, "flavor", "redoc", "generated swagger UI flavor")
 	flagSet.StringVar(&cfg.CDNPrefix, "cdn", "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui", "swagger-ui cdn prefix")
+	flagSet.StringVar(&cfg.RedocURL, "redoc-url", "https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js", "redoc url")
 	flagSet.StringVar(&cfg.UIVersion, "ui-version", "3.23.11", "swagger ui version")
 	flagSet.BoolVarP(&cfg.Serve, "serve", "s", false, "serve as http static server and open browser view site")
 	flagSet.BoolVar(&cfg.NoOpen, "no-open", false, "Not open UI in browser")
@@ -145,6 +165,10 @@ func cp(srcFile, dstFile string) error {
 	return nil
 }
 
+type UITemplateConfig interface {
+	Generate() ([]byte, error)
+}
+
 func doGenerate(cfg *generateOption) error {
 	if err := os.MkdirAll(cfg.OutputDir, 0755); err != nil {
 		return err
@@ -157,7 +181,18 @@ func doGenerate(cfg *generateOption) error {
 		}
 		cfg.SpecFiles[i] = dstPath
 	}
-	templateCfg, err := cfg.newUIIndexHTMLConfig()
+	var (
+		templateCfg UITemplateConfig
+		err         error
+	)
+	switch cfg.Flavor {
+	case "redoc":
+		templateCfg, err = cfg.newRedocUIIndexHTMLConfig()
+	case "swagger":
+		templateCfg, err = cfg.newUIIndexHTMLConfig()
+	default:
+		return fmt.Errorf("Unsupported flavor: %q", cfg.Flavor)
+	}
 	if err != nil {
 		return err
 	}
