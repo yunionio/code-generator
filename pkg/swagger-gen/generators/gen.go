@@ -454,10 +454,30 @@ func getTypeMethods(
 	t *types.Type,
 	predicateF func(*Method) bool,
 ) []*Method {
+	return _getTypeMethods(funcPrefixKeyword, keyword, keywordPlural, t, predicateF, nil)
+}
+
+func _getTypeMethods(
+	funcPrefixKeyword string,
+	keyword, keywordPlural string,
+	t *types.Type,
+	predicateF func(*Method) bool,
+	blacklist map[string]bool,
+) []*Method {
 	methods := make([]*Method, 0)
+	if blacklist == nil {
+		blacklist = make(map[string]bool)
+	}
 	for name := range t.Methods {
 		m := t.Methods[name]
-		if strings.HasPrefix(name, funcPrefixKeyword) && !includeIgnoreTag(m) {
+		if _, ok := blacklist[name]; ok {
+			continue
+		}
+		if strings.HasPrefix(name, funcPrefixKeyword) {
+			if includeIgnoreTag(m) {
+				blacklist[name] = true
+				continue
+			}
 			useIt := true
 			mWrap := NewMethod(t, name, m, keyword, keywordPlural)
 			if predicateF != nil {
@@ -471,7 +491,7 @@ func getTypeMethods(
 	}
 	for _, member := range t.Members {
 		if member.Embedded && len(extractIgnoreTag(member.CommentLines)) == 0 {
-			newMethods := getTypeMethods(funcPrefixKeyword, keyword, keywordPlural, member.Type, predicateF)
+			newMethods := _getTypeMethods(funcPrefixKeyword, keyword, keywordPlural, member.Type, predicateF, blacklist)
 			for i := range newMethods {
 				methods = appendMethod(methods, newMethods[i])
 			}
