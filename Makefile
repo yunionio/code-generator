@@ -10,5 +10,8 @@ swagger-serve:
 install: model-api-gen swagger-gen swagger-serve
 	rsync -avP _output/bin/* $$GOBIN
 
+fmt:
+	@git ls-files --exclude '*' '*.go' | grep -v '^vendor/' | xargs $(XARGS_FLAGS) gofmt -w
+
 clean:
 	rm -rf _output/bin/

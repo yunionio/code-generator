@@ -15,6 +15,7 @@ import (
 
 	"yunion.io/x/log"
 	"yunion.io/x/pkg/util/sets"
+	"yunion.io/x/pkg/utils"
 
 	"yunion.io/x/code-generator/pkg/common"
 	"yunion.io/x/code-generator/pkg/common/inflection"
@@ -528,7 +529,8 @@ func getManagerKeyword(manName string) string {
 	if strings.HasPrefix(name, "S") && isUpper(name[1]) {
 		name = strings.TrimPrefix(name, "S")
 	}
-	return strings.ToLower(name)
+	// use Camel2Kebab
+	return utils.CamelSplit(name, "_") // .ToLower(name)
 }
 
 func getManagerKeywords(man *types.Type) (string, string) {
