@@ -10,7 +10,7 @@ import (
 	"yunion.io/x/pkg/util/sets"
 )
 
-func EndWithResourceBase(t *types.Type) bool {
+/*func EndWithResourceBase(t *types.Type) bool {
 	resBases := []string{
 		"ResourceBase",
 		"JointsBase",
@@ -23,19 +23,37 @@ func EndWithResourceBase(t *types.Type) bool {
 		}
 	}
 	return false
+}*/
+
+func IsResourceModel(t *types.Type) bool {
+	// ignore SModelBase itself
+	if t.Name.Package == "yunion.io/x/onecloud/pkg/cloudcommon/db" && t.Name.Name == "SModelBase" {
+		return false
+	}
+	return isResourceModelInternal(t)
 }
 
-func IsResourceModel(t *types.Type, isCommonDBPkg bool) bool {
-	endWithResBase := EndWithResourceBase(t)
+func isResourceModelInternal(t *types.Type) bool {
+	/*endWithResBase := EndWithResourceBase(t)
+	log.Debugf("%s isCommonDBPkg: %v endWithResBase: %v", t.Name, isCommonDBPkg, endWithResBase)
 	if isCommonDBPkg && endWithResBase {
 		return true
 	} else if endWithResBase {
 		// service models pkg not generate cloudcommon/db models
 		return false
+	}*/
+
+	// ignore quotas
+	if t.Name.Package == "yunion.io/x/onecloud/pkg/cloudcommon/db/quotas" {
+		return false
+	}
+
+	if t.Name.Package == "yunion.io/x/onecloud/pkg/cloudcommon/db" && t.Name.Name == "SModelBase" {
+		return true
 	}
 
 	for _, m := range t.Members {
-		if EndWithResourceBase(m.Type) {
+		if isResourceModelInternal(m.Type) {
 			return true
 		}
 	}
@@ -59,7 +77,7 @@ func CollectModelManager(srcPkg string, pkgTypes []*types.Type, modelTypes sets.
 		if !InSourcePackage(t, srcPkg) {
 			continue
 		}
-		if IsResourceModel(t, false) {
+		if IsResourceModel(t) {
 			modelTypes.Insert(t.String())
 		} else {
 			restTypes = append(restTypes, t)

@@ -42,7 +42,7 @@ func (f *routeFactory) apiAction(trimPrefix string) string {
 	return apiAction
 }
 
-func (f *routeFactory) newRoute(action string, input *parameter, output *response) *route {
+func (f *routeFactory) newRoute(action string, input *parameter, output *response, defDesc string) *route {
 	method := f.method
 	r := &route{
 		action:    action,
@@ -59,6 +59,9 @@ func (f *routeFactory) newRoute(action string, input *parameter, output *respons
 	if len(input.errorMsgs) != 0 || len(output.errorMsgs) != 0 {
 		r.summary = "input or output error exists"
 	}
+	if len(r.summary) == 0 {
+		r.summary = defDesc
+	}
 	desc := make([]string, 0)
 	if len(input.errorMsgs) != 0 {
 		desc = append(desc, fmt.Sprintf("input error: %s", strings.Join(input.errorMsgs, ",")))
@@ -68,6 +71,8 @@ func (f *routeFactory) newRoute(action string, input *parameter, output *respons
 	}
 	if len(commentLines) > 1 {
 		desc = append(desc, commentLines[1:len(commentLines)]...)
+	} else {
+		desc = append(desc, defDesc)
 	}
 	r.description = desc
 	r.reviseDescription()
@@ -81,45 +86,45 @@ func (r *route) reviseDescription() {
 }
 
 func (f *routeFactory) Create(input *parameter, output *response) *route {
-	r := f.newRoute("POST", input, output)
+	r := f.newRoute("POST", input, output, "新建")
 	r.path = fmt.Sprintf("/%s", f.method.resPlural)
 	return r
 }
 
 func (f *routeFactory) List(input *parameter, output *response) *route {
-	r := f.newRoute("GET", input, output)
+	r := f.newRoute("GET", input, output, "列表")
 	r.path = fmt.Sprintf("/%s", f.method.resPlural)
 	return r
 }
 
 func (f *routeFactory) Get(input *parameter, output *response) *route {
-	r := f.newRoute("GET", input, output)
+	r := f.newRoute("GET", input, output, "获取详情")
 	r.path = fmt.Sprintf("/%s/{id}", f.method.resPlural)
 	return r
 }
 
 func (f *routeFactory) Update(input *parameter, output *response) *route {
-	r := f.newRoute("PUT", input, output)
+	r := f.newRoute("PUT", input, output, "更新")
 	r.path = fmt.Sprintf("/%s/{id}", f.method.resPlural)
 	return r
 }
 
 func (f *routeFactory) Delete(input *parameter, output *response) *route {
-	r := f.newRoute("DELETE", input, output)
+	r := f.newRoute("DELETE", input, output, "删除")
 	r.path = fmt.Sprintf("/%s/{id}", f.method.resPlural)
 	return r
 }
 
 func (f *routeFactory) GetSpec(input *parameter, output *response) *route {
 	apiAction := f.apiAction(GetSpec)
-	r := f.newRoute("GET", input, output)
+	r := f.newRoute("GET", input, output, fmt.Sprintf("获取指定信息%s", utils.Kebab2Camel(apiAction, "-")))
 	r.path = fmt.Sprintf("/%s/{id}/%s", f.method.resPlural, apiAction)
 	return r
 }
 
 func (f *routeFactory) PerformAction(input *parameter, output *response) *route {
 	apiAction := f.apiAction(Perform)
-	r := f.newRoute("POST", input, output)
+	r := f.newRoute("POST", input, output, fmt.Sprintf("执行操作%s", utils.Kebab2Camel(apiAction, "-")))
 	r.path = fmt.Sprintf("/%s/{id}/%s", f.method.resPlural, apiAction)
 	return r
 }
