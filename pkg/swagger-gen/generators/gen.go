@@ -367,6 +367,8 @@ func (g *swaggerGen) generateCode(manType *types.Type, modelType *types.Type, sw
 
 	applyGenerateFunc(generateGetSpec, parser.getSpecM, sw)
 	applyGenerateFunc(generatePerformAction, parser.performActionM, sw)
+	applyGenerateFunc(generateGetProperty, parser.getPropertyM, sw)
+	applyGenerateFunc(generateClassPerformAction, parser.performClassActionM, sw)
 }
 
 func applyGenerateFunc(genFunc func(*Method, *generator.SnippetWriter), getMethods func() []*Method, sw *generator.SnippetWriter) {
@@ -661,6 +663,27 @@ func (p *typeParser) performActionM() []*Method {
 	)
 }
 
+func (p *typeParser) performClassActionM() []*Method {
+	return p.getMethods(Perform, p.manager,
+		func(m *Method) bool {
+			sig := m.Signature()
+			paramsLen := len(sig.Parameters)
+			retLen := len(sig.Results)
+			if paramsLen != 4 || retLen != 2 {
+				return false
+			}
+			body := sig.Parameters[3]
+			output := sig.Results[0]
+			// input body and output must struct pointer
+			if err := validInputOutput(body, output); err != nil {
+				log.Warningf("validInputOutput for method %s: %v", m.String(), err)
+				//return false
+			}
+			return true
+		},
+	)
+}
+
 func (p *typeParser) getSpecM() []*Method {
 	return p.getMethods(GetSpec, p.model,
 		func(m *Method) bool {
@@ -675,6 +698,21 @@ func (p *typeParser) getSpecM() []*Method {
 			if err := isValidType(output); err != nil {
 				log.Warningf("method %s: output type is invalid: %v", m.String(), err)
 				//return false
+			}
+			return true
+		},
+	)
+}
+
+func (p *typeParser) getPropertyM() []*Method {
+	return p.getMethods(GetProperty, p.manager,
+		func(m *Method) bool {
+			sig := m.Signature()
+			paramsLen := len(sig.Parameters)
+			retLen := len(sig.Results)
+			// GetPropertyLatest(ctx context.Context, userCred mcclient.TokenCredential, query jsonutils.JSONObject) (Object, error)
+			if paramsLen != 3 || retLen != 2 {
+				return false
 			}
 			return true
 		},
@@ -832,6 +870,36 @@ func generatePerformAction(method *Method, sw *generator.SnippetWriter) {
 	param := newParameterFactory(method).PerformAction()
 	resp := newResponseFactory(method).FirstSingularResultNoError()
 	route := newRouteFactory(method).PerformAction(param, resp)
+	c := &commenter{
+		route:     route,
+		parameter: param,
+		response:  resp,
+	}
+	c.Do(sw)
+}
+
+func generateClassPerformAction(method *Method, sw *generator.SnippetWriter) {
+	if method == nil {
+		return
+	}
+	param := newParameterFactory(method).PerformClassAction()
+	resp := newResponseFactory(method).FirstSingularResultNoError()
+	route := newRouteFactory(method).PerformClassAction(param, resp)
+	c := &commenter{
+		route:     route,
+		parameter: param,
+		response:  resp,
+	}
+	c.Do(sw)
+}
+
+func generateGetProperty(method *Method, sw *generator.SnippetWriter) {
+	if method == nil {
+		return
+	}
+	param := newParameterFactory(method).GetProperty()
+	resp := newResponseFactory(method).FirstSingularResultNoError()
+	route := newRouteFactory(method).GetProperty(param, resp)
 	c := &commenter{
 		route:     route,
 		parameter: param,

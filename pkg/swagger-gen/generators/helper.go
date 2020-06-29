@@ -129,6 +129,20 @@ func (f *routeFactory) PerformAction(input *parameter, output *response) *route 
 	return r
 }
 
+func (f *routeFactory) PerformClassAction(input *parameter, output *response) *route {
+	apiAction := f.apiAction(Perform)
+	r := f.newRoute("POST", input, output, fmt.Sprintf("执行操作%s", utils.Kebab2Camel(apiAction, "-")))
+	r.path = fmt.Sprintf("/%s/%s", f.method.resPlural, apiAction)
+	return r
+}
+
+func (f *routeFactory) GetProperty(input *parameter, output *response) *route {
+	apiAction := f.apiAction(GetProperty)
+	r := f.newRoute("GET", input, output, fmt.Sprintf("获取指定资源类的信息%s", utils.Kebab2Camel(apiAction, "-")))
+	r.path = fmt.Sprintf("/%s/%s", f.method.resPlural, apiAction)
+	return r
+}
+
 type route struct {
 	// action means restful GET, POST, PUT, DELETE
 	action      string
@@ -281,6 +295,34 @@ func (f *paramterFactory) PerformAction() *parameter {
 		p.query = query
 	}
 	p.withId = true
+	return p
+}
+
+func (f *paramterFactory) PerformClassAction() *parameter {
+	// pattern: func(ctx, userCred, query, body)
+	query := f.method.Params(2)
+	body := f.method.Params(3)
+	p := f.newParameter()
+	if err := isValidType(body); err == nil {
+		p.body = body
+	} else {
+		log.Warningf("%s PerforClassmAction method %s invalid body type: %v", f.method.resPlural, f.method.String(), err)
+	}
+	if err := isValidType(query); err == nil {
+		p.query = query
+	}
+	p.withId = false
+	return p
+}
+
+func (f *paramterFactory) GetProperty() *parameter {
+	// pattern: func(ctx, userCred, query, body)
+	query := f.method.Params(2)
+	p := f.newParameter()
+	if err := isValidType(query); err == nil {
+		p.query = query
+	}
+	p.withId = false
 	return p
 }
 
