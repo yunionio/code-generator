@@ -363,6 +363,14 @@ func (g *apiGen) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 			continue
 		}
 
+		info := reflectutils.ParseFieldJsonInfo(mem.Name, reflect.StructTag(mem.Tags))
+		if info.Ignore {
+			continue
+		}
+		if val, ok := info.Tags["ignore"]; ok && val == "true" {
+			continue
+		}
+
 		var f func(types.Member, *generator.SnippetWriter)
 		switch mt.Kind {
 		case types.Builtin:
