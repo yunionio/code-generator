@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"html/template"
+	"sort"
+	"strings"
 )
 
 const (
@@ -152,6 +154,24 @@ const (
 type SwaggerFile struct {
 	Path string
 	Name string
+}
+
+type SwaggerFiles []*SwaggerFile
+
+var _ sort.Interface = SwaggerFiles(make([]*SwaggerFile, 0))
+
+func (sf SwaggerFiles) Len() int {
+	return len(sf)
+}
+
+func (sf SwaggerFiles) Swap(i, j int) {
+	sf[i], sf[j] = sf[j], sf[i]
+}
+
+func (sf SwaggerFiles) Less(i, j int) bool {
+	item1 := sf[i]
+	item2 := sf[j]
+	return strings.Compare(item1.Name, item2.Name) < 0
 }
 
 type UIIndexHTMLConfig struct {
