@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/loads/fmts"
@@ -92,14 +93,17 @@ func (o generateOption) newRedocUIIndexHTMLConfig() (UITemplateConfig, error) {
 		RedocURL: o.RedocURL,
 		URLs:     make([]*SwaggerFile, 0),
 	}
+	urls := make([]*SwaggerFile, 0)
 	loads.AddLoader(fmts.YAMLMatcher, fmts.YAMLDoc)
 	for _, spec := range o.SpecFiles {
 		u, err := newSwaggerFile(spec)
 		if err != nil {
 			return nil, err
 		}
-		config.URLs = append(config.URLs, u)
+		urls = append(urls, u)
 	}
+	sort.Sort(SwaggerFiles(urls))
+	config.URLs = urls
 	return config, nil
 }
 
