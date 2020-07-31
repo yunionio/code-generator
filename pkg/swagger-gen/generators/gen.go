@@ -648,7 +648,7 @@ func (p *typeParser) performActionM() []*Method {
 			sig := m.Signature()
 			paramsLen := len(sig.Parameters)
 			retLen := len(sig.Results)
-			if paramsLen != 4 || retLen != 2 {
+			if paramsLen != 4 || retLen != 2 || sig.Parameters[1].Name.Name != "TokenCredential" {
 				return false
 			}
 			body := sig.Parameters[3]
