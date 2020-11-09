@@ -118,6 +118,43 @@ const (
 
     <script src="{{ .RedocURL }}"> </script>
     <script>
+      function insertParam(key, value) {
+        key = encodeURIComponent(key);
+        value = encodeURIComponent(value);
+
+        // kvp looks like ['key1=value1', 'key2=value2', ...]
+        var kvp = document.location.search.substr(1).split('&');
+        let i=0;
+
+        for(; i<kvp.length; i++){
+            if (kvp[i].startsWith(key + '=')) {
+                let pair = kvp[i].split('=');
+                pair[1] = value;
+                kvp[i] = pair.join('=');
+                break;
+            }
+        }
+
+        if(i >= kvp.length){
+            kvp[kvp.length] = [key,value].join('=');
+        }
+
+        // can return this or...
+        let params = kvp.join('&');
+
+        // reload page with new params
+        document.location.search = params;
+      }
+
+      const apiIdx = 'apiIdx';
+      var urlParams = new URLSearchParams(window.location.search);
+      var apiIdxVal = urlParams.get(apiIdx);
+      if (apiIdxVal) {
+        apiIdxVal = parseInt(apiIdxVal);
+      } else {
+        apiIdxVal = 0;
+      }
+
       // list of APIS
       var apis = [
         {{range .URLs}}
@@ -129,7 +166,7 @@ const (
       ];
 
       // initially render first API
-      Redoc.init(apis[0].url);
+      Redoc.init(apis[apiIdxVal].url);
 
       function onClick() {
         var url = this.getAttribute('data-link');
@@ -138,11 +175,16 @@ const (
 
       // dynamically building navigation items
       var $list = document.getElementById('links_container');
-      apis.forEach(function(api) {
+      apis.forEach(function(api, idx) {
         var $listitem = document.createElement('li');
         $listitem.setAttribute('data-link', api.url);
+        var tmpIdx = idx;
         $listitem.innerText = api.name;
-        $listitem.addEventListener('click', onClick);
+        //$listitem.addEventListener('click', onClick);
+        $listitem.addEventListener('click', function() {
+          var url = this.getAttribute('data-link');
+          insertParam(apiIdx, tmpIdx);
+        });
         $list.appendChild($listitem);
       });
     </script>
