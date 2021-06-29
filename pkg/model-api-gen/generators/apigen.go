@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"golang.org/x/tools/imports"
 	"k8s.io/gengo/args"
@@ -180,12 +181,19 @@ func (g *apiGen) GetInputOutputPackageMap() map[string]string {
 	return GetInputOutputPackageMap(g.apisPkg)
 }
 
+func isPrivateStruct(name string) bool {
+	return unicode.IsLower([]rune(name)[0])
+}
+
 func (g *apiGen) collectTypes(pkgTypes []*types.Type) {
 	for _, t := range pkgTypes {
 		if t.Kind != types.Struct {
 			continue
 		}
 		if !g.inSourcePackage(t) {
+			continue
+		}
+		if isPrivateStruct(t.Name.Name) {
 			continue
 		}
 		if includeType(t) || g.isResourceModel(t) {
@@ -358,6 +366,9 @@ func (g *apiGen) needCopy(t *types.Type) bool {
 
 func (g *apiGen) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 	for _, mem := range t.Members {
+		if isPrivateStruct(mem.Name) {
+			continue
+		}
 		mt := mem.Type
 		if isModelBase(mt) {
 			continue
