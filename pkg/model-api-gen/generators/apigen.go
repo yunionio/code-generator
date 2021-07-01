@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"unicode"
 
 	"golang.org/x/tools/imports"
 	"k8s.io/gengo/args"
@@ -181,19 +180,15 @@ func (g *apiGen) GetInputOutputPackageMap() map[string]string {
 	return GetInputOutputPackageMap(g.apisPkg)
 }
 
-func isPrivateStruct(name string) bool {
-	return unicode.IsLower([]rune(name)[0])
-}
-
 func (g *apiGen) collectTypes(pkgTypes []*types.Type) {
 	for _, t := range pkgTypes {
-		if t.Kind != types.Struct {
+		if t.Kind != types.Struct && t.Kind != types.Alias {
 			continue
 		}
 		if !g.inSourcePackage(t) {
 			continue
 		}
-		if isPrivateStruct(t.Name.Name) {
+		if common.IsPrivateStruct(t.Name.Name) {
 			continue
 		}
 		if includeType(t) || g.isResourceModel(t) {
@@ -224,43 +219,28 @@ func isModelBase(t *types.Type) bool {
 }
 
 func (g *apiGen) addDependTypes(t *types.Type, out, dependOut sets.String) {
-	if t.Kind == types.Alias {
-		t = getPrimitiveType(underlyingType(t))
-		out.Insert(t.String())
+	if t.Kind == types.Alias || t.Kind == types.Struct {
+		if !out.Has(t.String()) && g.inSourcePackage(t) && !isModelBase(t) {
+			dependOut.Insert(t.String())
+		}
+		umt := underlyingType(t)
+		if umt.Kind == types.Builtin {
+			return
+		}
+		t = getPrimitiveType(umt)
+		if t.Kind == types.Builtin {
+			return
+		}
+		if !out.Has(t.String()) && g.inSourcePackage(t) && !isModelBase(t) {
+			dependOut.Insert(t.String())
+		}
 	}
 	for _, m := range t.Members {
 		switch m.Type.Kind {
-		case types.Struct:
-			if isModelBase(m.Type) {
-				continue
-			}
-			if !g.inSourcePackage(m.Type) {
-				dependOut.Insert(m.Type.String())
-				continue
-			}
-			out.Insert(m.Type.String())
+		case types.Struct, types.Alias:
 			g.addDependTypes(m.Type, out, dependOut)
-		case types.Pointer:
-			et := m.Type.Elem
-			//if et.Kind == types.Struct {
-			if !g.inSourcePackage(et) {
-				dependOut.Insert(et.String())
-				continue
-			}
-			out.Insert(et.String())
-			g.addDependTypes(et, out, dependOut)
-			//}
-		case types.Alias:
-			mt := m.Type
-			umt := underlyingType(mt)
-			umt = getPrimitiveType(umt)
-			if !g.inSourcePackage(mt) && !g.inSourcePackage(umt) {
-				dependOut.Insert(mt.String())
-				continue
-			}
-			out.Insert(mt.String(), umt.String())
-			// maybe bug?
-			g.addDependTypes(umt, out, dependOut)
+		case types.Pointer, types.Slice:
+			g.addDependTypes(m.Type.Elem, out, dependOut)
 		}
 	}
 }
@@ -277,9 +257,9 @@ func (g *apiGen) Filter(c *generator.Context, t *types.Type) bool {
 	if g.modelTypes.Has(t.String()) {
 		return true
 	}
-	/*if g.inSourcePackage(t) && g.modelDependTypes.Has(t.String()) {
+	if g.modelDependTypes.Has(t.String()) {
 		return true
-	}*/
+	}
 	return false
 }
 
@@ -296,7 +276,13 @@ func (g *apiGen) args(t *types.Type) interface{} {
 }
 
 func (g *apiGen) Imports(c *generator.Context) []string {
-	lines := g.imports.ImportLines()
+	lines := []string{}
+	for _, line := range g.imports.ImportLines() {
+		if strings.Index(line, CloudProviderPackage) > -1 || strings.Index(line, CloudCommonDBPackage) > -1 {
+			continue
+		}
+		lines = append(lines, line)
+	}
 	lines = append(lines, g.needImportPackages.List()...)
 	return lines
 }
@@ -323,7 +309,7 @@ func (g *apiGen) generateTypeForOp(c *generator.Context, t *types.Type, w io.Wri
 	case types.Alias:
 		g.generatorAliasType(t, sw)
 	default:
-		klog.Fatalf("Unsupported type %s", t.Kind)
+		klog.Fatalf("Unsupported type %s %s", t, t.Kind)
 	}
 	return sw.Error()
 }
@@ -344,8 +330,12 @@ func (g *apiGen) generatorAliasType(t *types.Type, sw *generator.SnippetWriter) 
 		content := "$.type|public$"
 		if elem.Kind == types.Pointer {
 			content = g.getPointerSourcePackageName(elem)
+		} else if elem.Kind == types.Builtin {
+			content = "$.type$"
 		}
 		sw.Do(fmt.Sprintf("[]%s", content), g.args(elem))
+	case types.Builtin:
+		sw.Do("$.type$ ", g.args(t.Underlying))
 	default:
 		sw.Do("$.type|public$ ", g.args(t.Underlying))
 	}
@@ -361,12 +351,12 @@ func underlyingType(t *types.Type) *types.Type {
 
 func (g *apiGen) needCopy(t *types.Type) bool {
 	tStr := t.String()
-	return !g.modelTypes.Has(tStr) && g.modelDependTypes.Has(tStr)
+	return !g.modelTypes.Has(tStr) && g.modelDependTypes.Has(tStr) && t.Kind != types.Builtin
 }
 
 func (g *apiGen) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 	for _, mem := range t.Members {
-		if isPrivateStruct(mem.Name) {
+		if common.IsPrivateStruct(mem.Name) {
 			continue
 		}
 		mt := mem.Type
@@ -396,6 +386,8 @@ func (g *apiGen) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 			f = g.doPointer
 		case types.Slice:
 			f = g.doSlice
+		case types.Map:
+			f = g.doMap
 		default:
 			klog.Fatalf("Hit an unsupported type %v.%s, kind is %s", t, mt.Name.Name, mt.Kind)
 			//klog.Warningf("Hit an unsupported type %v.%s, kind is %s", t, mt.Name.Name, mt.Kind)
@@ -507,6 +499,10 @@ func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
 	sw.Do(fmt.Sprintf("%s\n", ret), args)
 }
 
+func (g *apiGen) doMap(m types.Member, sw *generator.SnippetWriter) {
+	NewModelMember(m).Do(sw, g.args(m.Type))
+}
+
 func (g *apiGen) doBuiltin(m types.Member, sw *generator.SnippetWriter) {
 	NewModelMember(m).Do(sw, g.args(m.Type))
 }
@@ -535,7 +531,7 @@ func (g *apiGen) doAlias(member types.Member, sw *generator.SnippetWriter) {
 }
 
 func (g *apiGen) doSlice(member types.Member, sw *generator.SnippetWriter) {
-	klog.Fatalf("--slice not implement")
+	klog.Fatalf("--slice not implement for %s", member)
 }
 
 func (g *apiGen) doStruct(member types.Member, sw *generator.SnippetWriter) {
