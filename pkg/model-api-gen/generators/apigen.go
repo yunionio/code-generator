@@ -402,7 +402,6 @@ type Member struct {
 	mType        string
 	namer        string
 	embedded     bool
-	useInterface bool
 	commentLines []string
 }
 
@@ -443,11 +442,6 @@ func (m *Member) Embedded() *Member {
 	return m
 }
 
-func (m *Member) UseInterface() *Member {
-	m.useInterface = true
-	return m
-}
-
 func (m *Member) AddTag(tags ...string) *Member {
 	for _, t := range tags {
 		if !utils.IsInStringArray(t, m.jsonTags) {
@@ -480,8 +474,6 @@ func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
 	namePart := m.name
 	if m.mType != "" {
 		typePart = m.mType
-	} else if m.useInterface {
-		typePart = "interface{}"
 	} else {
 		typePart = fmt.Sprintf("$.type|%s$", m.namer)
 	}
@@ -574,9 +566,6 @@ func (g *apiGen) doInterface(m types.Member, sw *generator.SnippetWriter) {
 		klog.Fatalf("%s used as embedded interface", m.String())
 	}
 	mem := NewModelMember(m)
-	if g.inJSONUtilsPackage(m.Type) {
-		mem.UseInterface()
-	}
 	mem.Do(sw, g.args(m.Type))
 }
 
@@ -610,8 +599,6 @@ func (g *apiGen) doPointer(m types.Member, sw *generator.SnippetWriter) {
 	elem := m.Type.Elem
 	if g.inSourcePackage(elem) {
 		mem.Type(g.getPointerSourcePackageName(t))
-	} else if g.inJSONUtilsPackage(elem) {
-		mem.UseInterface()
 	} else if g.inOutputPackage(elem) {
 		mem.Type(fmt.Sprintf("*%s", elem.Name.Name))
 	}
