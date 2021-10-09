@@ -20,6 +20,7 @@ import (
 	"yunion.io/x/pkg/utils"
 
 	"yunion.io/x/code-generator/pkg/common"
+	"yunion.io/x/code-generator/pkg/swagger-gen/generators"
 )
 
 const (
@@ -254,6 +255,9 @@ func includeType(t *types.Type) bool {
 }
 
 func (g *apiGen) Filter(c *generator.Context, t *types.Type) bool {
+	if generators.IncludeIgnoreTag(t) {
+		return false
+	}
 	if g.modelTypes.Has(t.String()) {
 		return true
 	}
