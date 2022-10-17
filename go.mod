@@ -8,6 +8,7 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20190402232053-79abb63cd66e
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
+	golang.org/x/sys v0.0.0-20221013171732-95e765b1cc43 // indirect
 	golang.org/x/tools v0.0.0-20191227053925-7b8e75db28f4
 	k8s.io/gengo v0.0.0-20200425085600-19394052f0fa
 	k8s.io/klog v1.0.0
