@@ -292,7 +292,7 @@ func (g *apiGen) Imports(c *generator.Context) []string {
 }
 
 func (g *apiGen) GenerateType(c *generator.Context, t *types.Type, w io.Writer) error {
-	klog.V(2).Infof("Generating api model for type %s", t.String())
+	klog.V(1).Infof("Generating api model for type %s", t.String())
 
 	err := g.generateTypeForOp(c, t, w)
 	if err != nil {
@@ -381,7 +381,9 @@ func (g *apiGen) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 		case types.Builtin:
 			f = g.doBuiltin
 		case types.Struct:
-			f = g.doStruct
+			f = func(member types.Member, sw *generator.SnippetWriter) {
+				g.doStruct(t, member, sw)
+			}
 		case types.Interface:
 			f = g.doInterface
 		case types.Alias:
@@ -530,9 +532,9 @@ func (g *apiGen) doSlice(member types.Member, sw *generator.SnippetWriter) {
 	klog.Fatalf("--slice not implement for %s", member)
 }
 
-func (g *apiGen) doStruct(member types.Member, sw *generator.SnippetWriter) {
+func (g *apiGen) doStruct(parentType *types.Type, member types.Member, sw *generator.SnippetWriter) {
 	mt := member.Type
-	klog.V(5).Infof("doStruct for %s", mt.Name.String())
+	klog.V(1).Infof("doStruct for memeber %s of %s", mt.Name.String(), parentType.String())
 	//inPkg := g.inSourcePackage(member.Type)
 	m := NewModelMember(member)
 	if member.Embedded {
@@ -543,7 +545,8 @@ func (g *apiGen) doStruct(member types.Member, sw *generator.SnippetWriter) {
 		info := reflectutils.ParseFieldJsonInfo(member.Name, reflect.StructTag(member.Tags))
 		_, getTag := info.Tags["get"]
 		_, listTag := info.Tags["list"]
-		if !getTag && !listTag {
+		if !getTag && !listTag && g.modelTypes.Has(parentType.String()) {
+			klog.V(1).Infof("doStruct ignore for memeber %s of %s cause of no get and list tag", mt.String(), parentType.String())
 			return
 		}
 	}
