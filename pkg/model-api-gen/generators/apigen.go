@@ -285,6 +285,13 @@ func (g *apiGen) Imports(c *generator.Context) []string {
 		if strings.Index(line, CloudProviderPackage) > -1 || strings.Index(line, CloudCommonDBPackage) > -1 {
 			continue
 		}
+		parts := strings.Split(line, " ")
+		if len(parts) == 2 {
+			pkgName := strings.Trim(parts[1], `"`)
+			if g.needImportPackages.Has(pkgName) {
+				continue
+			}
+		}
 		lines = append(lines, line)
 	}
 	lines = append(lines, g.needImportPackages.List()...)
