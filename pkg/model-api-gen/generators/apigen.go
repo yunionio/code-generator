@@ -367,46 +367,52 @@ func (g *apiGen) needCopy(t *types.Type) bool {
 
 func (g *apiGen) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 	for _, mem := range t.Members {
-		if common.IsPrivateStruct(mem.Name) {
-			continue
-		}
-		mt := mem.Type
-		if isModelBase(mt) {
-			continue
-		}
-
-		info := reflectutils.ParseFieldJsonInfo(mem.Name, reflect.StructTag(mem.Tags))
-		if info.Ignore {
-			continue
-		}
-		if val, ok := info.Tags["ignore"]; ok && val == "true" {
-			continue
-		}
-
-		var f func(types.Member, *generator.SnippetWriter)
-		switch mt.Kind {
-		case types.Builtin:
-			f = g.doBuiltin
-		case types.Struct:
-			f = func(member types.Member, sw *generator.SnippetWriter) {
-				g.doStruct(t, member, sw)
-			}
-		case types.Interface:
-			f = g.doInterface
-		case types.Alias:
-			f = g.doAlias
-		case types.Pointer:
-			f = g.doPointer
-		case types.Slice:
-			f = g.doSlice
-		case types.Map:
-			f = g.doMap
-		default:
-			klog.Fatalf("Hit an unsupported type %v.%s, kind is %s", t, mt.Name.Name, mt.Kind)
-			//klog.Warningf("Hit an unsupported type %v.%s, kind is %s", t, mt.Name.Name, mt.Kind)
-		}
-		f(mem, sw)
+		g.generateForMember(t, mem, sw)
 	}
+}
+
+func (g *apiGen) generateForMember(t *types.Type, mem types.Member, sw *generator.SnippetWriter) {
+	if common.IsPrivateStruct(mem.Name) {
+		return
+	}
+	mt := mem.Type
+	if isModelBase(mt) {
+		return
+	}
+
+	info := reflectutils.ParseFieldJsonInfo(mem.Name, reflect.StructTag(mem.Tags))
+	if info.Ignore {
+		return
+	}
+	if val, ok := info.Tags["ignore"]; ok && val == "true" {
+		return
+	}
+
+	var f func(types.Member, *generator.SnippetWriter)
+	switch mt.Kind {
+	case types.Builtin:
+		f = g.doBuiltin
+	case types.Struct:
+		f = func(member types.Member, sw *generator.SnippetWriter) {
+			g.doStruct(t, member, sw)
+		}
+	case types.Interface:
+		f = g.doInterface
+	case types.Alias:
+		f = func(member types.Member, sw *generator.SnippetWriter) {
+			g.doAlias(t, member, sw)
+		}
+	case types.Pointer:
+		f = g.doPointer
+	case types.Slice:
+		f = g.doSlice
+	case types.Map:
+		f = g.doMap
+	default:
+		klog.Fatalf("Hit an unsupported type %v.%s, kind is %s", t, mt.Name.Name, mt.Kind)
+		//klog.Warningf("Hit an unsupported type %v.%s, kind is %s", t, mt.Name.Name, mt.Kind)
+	}
+	f(mem, sw)
 }
 
 type Member struct {
@@ -504,6 +510,16 @@ func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
 	sw.Do(fmt.Sprintf("%s\n", ret), args)
 }
 
+func (g *apiGen) doSlice(m types.Member, sw *generator.SnippetWriter) {
+	memType := m.Type.Elem
+	memPkg := memType.Name.Package
+	modelMem := NewModelMember(m)
+	if memPkg == g.outputPackage || memPkg == g.sourcePackage {
+		modelMem.Type(fmt.Sprintf("[]%s", memType.Name.Name))
+	}
+	modelMem.Do(sw, g.args(m.Type))
+}
+
 func (g *apiGen) doMap(m types.Member, sw *generator.SnippetWriter) {
 	NewModelMember(m).Do(sw, g.args(m.Type))
 }
@@ -524,7 +540,7 @@ var (
 	}
 )
 
-func (g *apiGen) doAlias(member types.Member, sw *generator.SnippetWriter) {
+func (g *apiGen) doAlias(parentType *types.Type, member types.Member, sw *generator.SnippetWriter) {
 	mt := member.Type
 	if ct, ok := TypeMap[mt.Name.Name]; ok {
 		m := NewModelMember(member).AddTag(ct.JSONTags...).Type(ct.Type)
@@ -532,11 +548,9 @@ func (g *apiGen) doAlias(member types.Member, sw *generator.SnippetWriter) {
 		return
 	}
 	ut := underlyingType(mt)
-	NewModelMember(member).Do(sw, g.args(ut))
-}
-
-func (g *apiGen) doSlice(member types.Member, sw *generator.SnippetWriter) {
-	klog.Fatalf("--slice not implement for %s", member)
+	// NewModelMember(member).Do(sw, g.args(ut))
+	member.Type = ut
+	g.generateForMember(parentType, member, sw)
 }
 
 func (g *apiGen) doStruct(parentType *types.Type, member types.Member, sw *generator.SnippetWriter) {
