@@ -29,6 +29,7 @@ const (
 	SModelBase           = "SModelBase"
 	CloudCommonDBPackage = "yunion.io/x/onecloud/pkg/cloudcommon/db"
 	CloudProviderPackage = "yunion.io/x/onecloud/pkg/cloudprovider"
+	MonitorModelsPackage = "yunion.io/x/onecloud/pkg/monitor/models"
 )
 
 func extractTag(comments []string) []string {
@@ -50,12 +51,14 @@ func extractTag(comments []string) []string {
 var (
 	APIsPackage              = "yunion.io/x/onecloud/pkg/apis"
 	APIsCloudProviderPackage = filepath.Join(APIsPackage, "cloudprovider")
+	APIsMonitorPackage       = filepath.Join(APIsPackage, "monitor")
 )
 
 func GetInputOutputPackageMap(apisPkg string) map[string]string {
 	ret := map[string]string{
 		CloudCommonDBPackage: APIsPackage,
 		CloudProviderPackage: APIsCloudProviderPackage, // filepath.Join(apisPkg, "cloudprovider"),
+		MonitorModelsPackage: APIsMonitorPackage,
 	}
 	return ret
 }
