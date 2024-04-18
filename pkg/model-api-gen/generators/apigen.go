@@ -28,7 +28,7 @@ const (
 	//tagPkgName           = "onecloud:model-api-gen-pkg"
 	SModelBase           = "SModelBase"
 	CloudCommonDBPackage = "yunion.io/x/onecloud/pkg/cloudcommon/db"
-	CloudProviderPackage = "yunion.io/x/onecloud/pkg/cloudprovider"
+	CloudProviderPackage = "yunion.io/x/cloudmux/pkg/cloudprovider"
 	MonitorModelsPackage = "yunion.io/x/onecloud/pkg/monitor/models"
 )
 
