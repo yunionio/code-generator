@@ -291,7 +291,7 @@ func (g *apiGen) Imports(c *generator.Context) []string {
 		parts := strings.Split(line, " ")
 		if len(parts) == 2 {
 			pkgName := strings.Trim(parts[1], `"`)
-			if g.needImportPackages.Has(pkgName) {
+			if g.needImportPackages.Has(pkgName) || pkgName == g.outputPackage {
 				continue
 			}
 		}
@@ -515,10 +515,19 @@ func (m *Member) Do(sw *generator.SnippetWriter, args interface{}) {
 
 func (g *apiGen) doSlice(m types.Member, sw *generator.SnippetWriter) {
 	memType := m.Type.Elem
+	point := false
+	if memType.Kind == types.Pointer {
+		memType = memType.Elem
+		point = true
+	}
 	memPkg := memType.Name.Package
 	modelMem := NewModelMember(m)
 	if memPkg == g.outputPackage || memPkg == g.sourcePackage {
-		modelMem.Type(fmt.Sprintf("[]%s", memType.Name.Name))
+		if point {
+			modelMem.Type(fmt.Sprintf("[]*%s", memType.Name.Name))
+		} else {
+			modelMem.Type(fmt.Sprintf("[]%s", memType.Name.Name))
+		}
 	}
 	modelMem.Do(sw, g.args(m.Type))
 }
