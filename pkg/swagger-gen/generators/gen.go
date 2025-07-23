@@ -779,6 +779,10 @@ func (w snippetWriter) line(l string) {
 	w.lines([]string{l})
 }
 
+func (w snippetWriter) rawLine(l string) {
+	w.sw.Do(fmt.Sprintf("%s", l), nil)
+}
+
 func generateCreate(createMethod, getMethod *Method, sw *generator.SnippetWriter) {
 	if createMethod == nil || getMethod == nil {
 		return

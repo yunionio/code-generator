@@ -391,6 +391,16 @@ func (r parameter) getBody() *types.Type {
 }
 
 func (r parameter) do(sw *generator.SnippetWriter, h *snippetWriter) {
+	query := r.getQuery()
+	var queryMapName string
+	if query != nil {
+		if query.Kind == types.Map {
+			// create map alias struct
+			queryMapName = fmt.Sprintf("%s_map ", r.operationId)
+			h.rawLine("type " + queryMapName)
+			sw.Do("$.type|raw$\n", getArgs(query))
+		}
+	}
 	sw.Do(fmt.Sprintf("type %s struct {\n", r.operationId), nil)
 	if r.withId {
 		h.line(fmt.Sprintf("The Id or Name of %s", r.singular))
@@ -403,10 +413,13 @@ func (r parameter) do(sw *generator.SnippetWriter, h *snippetWriter) {
 		h.line("in:path")
 		sw.Do(fmt.Sprintf("%s string `json:\"%s\"`\n", strings.Title(k), k), nil)
 	}
-	query := r.getQuery()
 	if query != nil {
 		args := getArgs(query)
-		sw.Do("$.type|raw$\n", args)
+		if queryMapName != "" {
+			h.rawLine(fmt.Sprintf("%s\n", queryMapName))
+		} else {
+			sw.Do("$.type|raw$\n", args)
+		}
 	}
 	body := r.getBody()
 	args := getArgs(body)
