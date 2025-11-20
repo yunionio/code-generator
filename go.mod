@@ -1,6 +1,6 @@
 module yunion.io/x/code-generator
 
-go 1.21
+go 1.24.0
 
 replace (
 	golang.org/x/tools => github.com/yousong/tools v0.0.0-20191028041046-a3599409985d
@@ -67,9 +67,9 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/sirupsen/logrus v1.6.0 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
-	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 )
