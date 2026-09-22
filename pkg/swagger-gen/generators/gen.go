@@ -522,7 +522,7 @@ func newTypeParser(man *types.Type, model *types.Type) *typeParser {
 
 func getManagerKeyword(manName string) string {
 	name := strings.TrimSuffix(manName, "Manager")
-	if len(name) == 0 && len(name) == 1 {
+	if len(name) < 2 {
 		log.Fatalf("Invalid manager struct name: %s", manName)
 	}
 	isUpper := func(x byte) bool {
