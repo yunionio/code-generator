@@ -25,6 +25,13 @@ const (
 	// 设置该注释，相应的资源结构体或者方法会被过滤
 	tagIgnoreName = "onecloud:swagger-gen-ignore"
 
+	// 设置该注释后，方法仅对列出的资源生成 swagger（按 model singular 匹配）。
+	// 可写多个或逗号分隔，例如：
+	//   // +onecloud:swagger-gen-only-for=server
+	//   // +onecloud:swagger-gen-only-for=disk,network
+	// 若同时存在 swagger-gen-ignore，only-for 优先：仅对列表内资源生成。
+	tagOnlyForName = "onecloud:swagger-gen-only-for"
+
 	// 设置 swagger route 的方法
 	tagRouteMethod = "onecloud:swagger-gen-route-method"
 
@@ -78,6 +85,35 @@ func extractTagByName(comments []string, tagName string) []string {
 
 func extractIgnoreTag(comments []string) []string {
 	return extractTagByName(comments, tagIgnoreName)
+}
+
+func extractOnlyForTag(comments []string) []string {
+	return extractTagByName(comments, tagOnlyForName)
+}
+
+// extractOnlyForKeywords 解析 only-for 注释中的资源 singular 列表。
+func extractOnlyForKeywords(comments []string) sets.String {
+	ret := sets.NewString()
+	for _, val := range extractOnlyForTag(comments) {
+		for _, part := range strings.Split(val, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				ret.Insert(part)
+			}
+		}
+	}
+	return ret
+}
+
+// skipMethodForResource 判断方法是否应对当前资源跳过 swagger 生成。
+// only-for 存在时：仅当当前资源 singular 不在列表中才跳过（优先于 ignore）。
+// 否则：存在 ignore 则跳过。
+func skipMethodForResource(m *types.Type, keyword string) bool {
+	onlyFor := extractOnlyForKeywords(m.CommentLines)
+	if onlyFor.Len() > 0 {
+		return !onlyFor.Has(keyword)
+	}
+	return IncludeIgnoreTag(m)
 }
 
 func extractSwaggerRoute(comments []string) *SwaggerConfigRoute {
@@ -477,7 +513,7 @@ func _getTypeMethods(
 			continue
 		}
 		if strings.HasPrefix(name, funcPrefixKeyword) {
-			if IncludeIgnoreTag(m) {
+			if skipMethodForResource(m, keyword) {
 				blacklist[name] = true
 				continue
 			}
