@@ -42,6 +42,19 @@ func (f *routeFactory) apiAction(trimPrefix string) string {
 	return apiAction
 }
 
+// filterDocCommentLines 去掉 +onecloud: 生成器标签，避免泄漏到 swagger summary/description。
+func filterDocCommentLines(comments []string) []string {
+	ret := make([]string, 0, len(comments))
+	for _, line := range comments {
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(trim, "+onecloud:") {
+			continue
+		}
+		ret = append(ret, line)
+	}
+	return ret
+}
+
 func (f *routeFactory) newRoute(action string, input *parameter, output *response, defDesc string) *route {
 	method := f.method
 	r := &route{
@@ -52,7 +65,7 @@ func (f *routeFactory) newRoute(action string, input *parameter, output *respons
 			200: output,
 		},
 	}
-	commentLines := method.Method().CommentLines
+	commentLines := filterDocCommentLines(method.Method().CommentLines)
 	if len(commentLines) > 0 {
 		r.summary = commentLines[0]
 	}
